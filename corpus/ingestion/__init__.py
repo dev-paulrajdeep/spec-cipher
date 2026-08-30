@@ -1,8 +1,40 @@
 """
 SpecCipher corpus ingestion package.
 
-Provides PDF ingestion utilities for extracting page-preserving
-raw content from Indian Standards documents.
+Format-agnostic ingestion for the standards corpus: reads raw source
+documents (currently PDF and plain text) and hands downstream corpus
+modules (processing, metadata, chunking) a single consistent shape,
+regardless of how the source document arrived.
+
+Text cleaning, metadata extraction, section detection, and chunking
+are out of scope here — see the sibling `processing`, `metadata`, and
+`chunking` packages.
 """
 
-__all__ = []
+from .extractor import (
+    DocumentExtractor,
+    ExtractedDocument,
+    ExtractedPage,
+    ExtractionError,
+    UnsupportedFormatError,
+)
+from .pdf_reader import (
+    EncryptedPDFError,
+    PDFDocument,
+    PDFPage,
+    PDFReadError,
+    PDFReader,
+)
+
+__all__ = [
+    "DocumentExtractor",
+    "ExtractedDocument",
+    "ExtractedPage",
+    "ExtractionError",
+    "UnsupportedFormatError",
+    "PDFReader",
+    "PDFDocument",
+    "PDFPage",
+    "PDFReadError",
+    "EncryptedPDFError",
+]

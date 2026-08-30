@@ -38,11 +38,25 @@ class PDFPage:
 
     page_number: int
     text: str
+    # Internal: plain-text extraction used to judge text density, kept
+    # separate from `text` so a non-default extraction_mode (e.g. "html")
+    # can never mask a blank/scanned page behind markup boilerplate.
+    # None means "extraction_mode was already 'text'", so `text` itself
+    # is the reference; use field(compare=False) so it doesn't affect
+    # equality between otherwise-identical pages.
+    _sparsity_text: str | None = field(default=None, repr=False, compare=False)
 
     @property
     def char_count(self) -> int:
-        """Number of characters extracted from this page."""
-        return len(self.text.strip())
+        """
+        Number of characters used to judge text density.
+
+        Always measured from plain-text extraction regardless of
+        `extraction_mode`, so markup added by "html"/"xml"/"xhtml"
+        modes never masks a page that is actually blank or scanned.
+        """
+        reference = self.text if self._sparsity_text is None else self._sparsity_text
+        return len(reference.strip())
 
     @property
     def is_text_sparse(self) -> bool:
@@ -209,6 +223,11 @@ class PDFReader:
                 PDFPage(
                     page_number=page_number,
                     text=page.get_text(self.extraction_mode),
+                    _sparsity_text=(
+                        page.get_text("text")
+                        if self.extraction_mode != "text"
+                        else None
+                    ),
                 )
                 for page_number, page in enumerate(document, start=1)
             ]
