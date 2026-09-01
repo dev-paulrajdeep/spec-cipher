@@ -25,6 +25,7 @@ from .pdf_reader import (
     PDFReadError,
     PDFReader,
 )
+from .ocr import OCRPageProvider, OCRRouter, OCRRoutingResult
 
 __all__ = [
     "DocumentExtractor",
@@ -37,4 +38,7 @@ __all__ = [
     "PDFPage",
     "PDFReadError",
     "EncryptedPDFError",
+    "OCRPageProvider",
+    "OCRRouter",
+    "OCRRoutingResult",
 ]

@@ -284,6 +284,15 @@ rather than simply a standards search box.
                          └─────────────────┘
 ```
 
+## Corpus preparation
+
+The repository now includes a deterministic corpus layer for preparing source
+standards for later retrieval work. It preserves source pages, routes sparse
+PDF pages to optional OCR, retains raw and cleaned text, extracts only
+evidenced metadata and relationships, detects standard clauses, and emits
+canonical JSON plus provenance-complete chunk JSONL. See [CORPUS.md](CORPUS.md)
+for the schema, OCR adapter boundary, and usage.
+
 ------------------------------------------------------------------------
 
 ## AI / Retrieval Workflow
