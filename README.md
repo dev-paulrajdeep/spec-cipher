@@ -293,6 +293,23 @@ evidenced metadata and relationships, detects standard clauses, and emits
 canonical JSON plus provenance-complete chunk JSONL. See [CORPUS.md](CORPUS.md)
 for the schema, OCR adapter boundary, and usage.
 
+## Retrieval preparation
+
+The retrieval layer consumes corpus JSON/JSONL chunks, encodes them with a
+pretrained sentence-embedding model, and performs exact normalized-vector
+FAISS Top-K search. It preserves corpus provenance and exposes semantic
+candidate chunks only; it does not make applicability decisions. See
+[RETRIEVAL.md](RETRIEVAL.md) for persistence, score semantics, usage, and
+evaluation.
+
+## Intelligence decision engine
+
+The Intelligence layer consumes retrieval candidates and explicit corpus facts
+to apply binary constraints, rerank, assess decomposed applicability, select
+provenance-complete evidence, and traverse stated relationships. It produces
+explainable recommendations, not API responses or opaque LLM decisions. See
+[INTELLIGENCE.md](INTELLIGENCE.md) for the contract and scoring semantics.
+
 ------------------------------------------------------------------------
 
 ## AI / Retrieval Workflow
