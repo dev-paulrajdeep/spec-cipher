@@ -31,7 +31,8 @@ def analyse_input():
             "message": "user_input is required."
         }), 400
 
-    print("user r input", user_input)
+    print("user r input", user_input)   # used it for debbuging ,, siddhartha 
+   
 
     return jsonify({
         "status": "success",
