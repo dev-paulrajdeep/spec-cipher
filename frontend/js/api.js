@@ -138,3 +138,12 @@ class ApiClient {
 
 window.apiClient =
   new ApiClient(CONFIG.API_BASE_URL);
+
+// SAPTAK: ami just check koroner liga ikhane leksilam ida...still keeping it to link later...
+
+// async function send_to_flask() {
+//     const response = await fetch("http://127.0.0.1:5000/get_result");
+//     const result = await response.text();
+
+//     document.getElementById("btn-submit-analysis").textContent = result;
+// }
