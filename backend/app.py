@@ -13,10 +13,9 @@ def index():
 
 @app.route("/<path:filename>")
 def frontend_files(filename):
-    # only for pdf files from user input, allow only certain file types
-    #allowed = {"css", "js", "png", "jpg", "html"}   # i change this because we want to allow pdf files from user input,,Daksh
-    if not filename.lower().endswith(".pdf"):
-        return jsonify({"status": "error", "message": "File type not allowed"}), 403
+    # allowed = {"css", "js", "png", "jpg", "html"}
+     #if filename.split(".")[-1] not in allowed:
+      #  return jsonify({"status": "error", "message": "File type not allowed"}), 403
     return send_from_directory(FRONTEND_DIR, filename)
 
 @app.route("/get_result", methods=["POST"])
@@ -29,7 +28,7 @@ def analyse_input():
     if not user_input:
         return jsonify({"status": "error", "message": "user_input is required."}), 400
 
-    logging.debug(f"user_input: {user_input}")  # used it for debugging ,, siddhartha 
+    logging.debug(f"user_input: {user_input}")  # used it for debugging ,, siddhartha
 
     return jsonify({
         "status": "success",
@@ -40,4 +39,3 @@ def analyse_input():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
