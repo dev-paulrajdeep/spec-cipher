@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SpecCipher — Find Indian Standards for Procurement</title>
-  <meta name="description" content="Describe a procurement requirement or upload a tender document to identify potentially applicable Indian Standards.">
+  <meta name="description"
+    content="Describe a procurement requirement or upload a tender document to identify potentially applicable Indian Standards.">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/responsive.css">
 </head>
+
 <body>
 
   <header class="app-header">
@@ -34,11 +37,7 @@
 
   <main class="main-wrapper" id="main-content">
 
-    <section
-      class="view-section active"
-      id="view-new-analysis"
-      aria-label="Analyze a specification"
-    >
+    <section class="view-section active" id="view-new-analysis" aria-label="Analyze a specification">
       <form id="spec-analysis-form" novalidate>
         <div class="tool-screen">
 
@@ -52,76 +51,38 @@
             or operating conditions — or attach a tender document.
           </p>
 
-          <textarea
-            id="spec-raw-text"
-            class="spec-textarea"
-            placeholder="Describe your procurement requirement..."
-            rows="8"
-            aria-label="Procurement specification"
-          ></textarea>
+          <textarea id="spec-raw-text" class="spec-textarea" placeholder="Describe your procurement requirement..."
+            rows="8" aria-label="Procurement specification"></textarea>
 
           <!-- File attach aar optional details -->
           <div class="tool-secondary-row">
             <div>
-              <input
-                type="file"
-                id="spec-file-input"
-                class="file-hidden-input"
-                accept=".pdf,.txt"
-                aria-label="Attach a PDF or text document"
-              >
+              <input type="file" id="spec-file-input" class="file-hidden-input" accept=".pdf,.txt"
+                aria-label="Attach a PDF or text document">
 
-              <div
-                id="spec-dropzone"
-                class="upload-inline-btn"
-                role="button"
-                tabindex="0"
-                aria-label="Attach a PDF"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              <div id="spec-dropzone" class="upload-inline-btn" role="button" tabindex="0" aria-label="Attach a PDF">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  aria-hidden="true">
+                  <path
+                    d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                 </svg>
                 Attach a PDF
               </div>
             </div>
 
-            <button
-              type="button"
-              class="structured-toggle-btn"
-              id="toggle-structured-fields"
-              aria-expanded="false"
-              aria-controls="structured-fields-container"
-            >
+            <button type="button" class="structured-toggle-btn" id="toggle-structured-fields" aria-expanded="false"
+              aria-controls="structured-fields-container">
               Add details (optional)
 
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
           </div>
 
           <!-- File select korar por ekhane dekhabe -->
-          <div
-            class="selected-file-card"
-            id="selected-file-preview"
-            role="status"
-          >
+          <div class="selected-file-card" id="selected-file-preview" role="status">
             <div class="file-meta-info">
               <div class="file-type-icon" aria-hidden="true">PDF</div>
 
@@ -135,77 +96,44 @@
               </div>
             </div>
 
-            <button
-              type="button"
-              class="btn btn-outline btn-sm"
-              id="btn-remove-file"
-            >
+            <button type="button" class="btn btn-outline btn-sm" id="btn-remove-file">
               Remove
             </button>
           </div>
 
           <!-- Optional details -->
-          <div
-            class="structured-fields-grid"
-            id="structured-fields-container"
-            style="display:none;"
-            aria-hidden="true"
-          >
+          <div class="structured-fields-grid" id="structured-fields-container" style="display:none;" aria-hidden="true">
             <div class="form-group">
               <label for="spec-product" class="form-label">
                 Product / item
               </label>
-              <input
-                type="text"
-                id="spec-product"
-                class="input-text"
-                placeholder="e.g. Submersible pump"
-              >
+              <input type="text" id="spec-product" class="input-text" placeholder="e.g. Submersible pump">
             </div>
 
             <div class="form-group">
               <label for="spec-application" class="form-label">
                 Application
               </label>
-              <input
-                type="text"
-                id="spec-application"
-                class="input-text"
-                placeholder="e.g. Agricultural irrigation"
-              >
+              <input type="text" id="spec-application" class="input-text" placeholder="e.g. Agricultural irrigation">
             </div>
 
             <div class="form-group">
               <label for="spec-tech-specs" class="form-label">
                 Technical parameters
               </label>
-              <input
-                type="text"
-                id="spec-tech-specs"
-                class="input-text"
-                placeholder="e.g. 15 kW, 415V, IP68"
-              >
+              <input type="text" id="spec-tech-specs" class="input-text" placeholder="e.g. 15 kW, 415V, IP68">
             </div>
 
             <div class="form-group">
               <label for="spec-quantity" class="form-label">
                 Quantity
               </label>
-              <input
-                type="number"
-                id="spec-quantity"
-                class="input-text"
-                placeholder="e.g. 100"
-                min="1"
-              >
+              <input type="number" id="spec-quantity" class="input-text" placeholder="e.g. 100" min="1">
             </div>
           </div>
 
-          <button
-            type="submit"
-            class="tool-analyze-btn"
-            id="btn-submit-analysis"
-          >
+
+          <button onclick="send_to_flask()" type="button" class="tool-analyze-btn" id="btn-submit-analysis">
             Analyze
           </button>
 
@@ -215,11 +143,7 @@
           </p>
 
           <div class="tool-clear-link">
-            <button
-              type="button"
-              class="btn-text-link"
-              id="btn-clear-spec"
-            >
+            <button type="button" class="btn-text-link" id="btn-clear-spec">
               Clear form
             </button>
           </div>
@@ -228,11 +152,7 @@
       </form>
     </section>
 
-    <section
-      class="view-section"
-      id="view-results"
-      aria-label="Analysis results"
-    >
+    <section class="view-section" id="view-results" aria-label="Analysis results">
       <div class="results-back-nav">
         <div class="results-back-nav-left">
           <button class="btn-text-link" data-view-target="new-analysis">
@@ -240,22 +160,12 @@
           </button>
         </div>
 
-        <div
-          class="results-compare-hint"
-          id="results-compare-hint"
-          style="display:none;"
-        ></div>
+        <div class="results-compare-hint" id="results-compare-hint" style="display:none;"></div>
       </div>
 
       <div class="empty-state-box" id="results-empty-state">
-        <svg
-          class="empty-state-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
+        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          aria-hidden="true">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
           <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -278,33 +188,20 @@
         </div>
       </div>
 
-      <div
-        class="results-container"
-        id="results-content-area"
-        style="display:none;"
-      >
+      <div class="results-container" id="results-content-area" style="display:none;">
         <div class="results-summary-banner">
           <div>
-            <div
-              class="query-meta-title"
-              id="result-query-timestamp"
-            >
+            <div class="query-meta-title" id="result-query-timestamp">
               Analysis
             </div>
 
-            <div
-              class="query-text-preview"
-              id="result-query-preview"
-            >
+            <div class="query-text-preview" id="result-query-preview">
               Procurement requirement
             </div>
           </div>
 
           <div class="results-action-group">
-            <button
-              class="btn btn-outline btn-sm"
-              id="btn-refine-spec"
-            >
+            <button class="btn btn-outline btn-sm" id="btn-refine-spec">
               Refine specification
             </button>
           </div>
@@ -313,42 +210,19 @@
         <div class="understood-specs-card">
           <div class="panel-header">
             <div class="panel-title">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                aria-hidden="true">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
               What we understood
             </div>
           </div>
 
-          <div
-            class="specs-grid-layout"
-            id="understood-specs-grid"
-          ></div>
+          <div class="specs-grid-layout" id="understood-specs-grid"></div>
 
-          <div
-            class="missing-info-banner"
-            id="missing-info-box"
-            style="display:none;"
-            role="status"
-          >
-            <svg
-              class="missing-info-icon"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              aria-hidden="true"
-            >
+          <div class="missing-info-banner" id="missing-info-box" style="display:none;" role="status">
+            <svg class="missing-info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
@@ -363,16 +237,10 @@
                 Providing the following may improve matching accuracy:
               </div>
 
-              <ul
-                class="missing-info-list"
-                id="missing-info-list"
-              ></ul>
+              <ul class="missing-info-list" id="missing-info-list"></ul>
 
               <div style="margin-top:0.65rem;">
-                <button
-                  class="btn btn-sm btn-secondary"
-                  data-view-target="new-analysis"
-                >
+                <button class="btn btn-sm btn-secondary" data-view-target="new-analysis">
                   Refine specification
                 </button>
               </div>
@@ -380,27 +248,17 @@
           </div>
         </div>
 
-        <div
-          class="institutional-notice"
-          id="results-global-warnings"
+        <div class="institutional-notice" id="results-global-warnings"
           style="display:none; background:var(--status-low-bg); border-color:var(--status-low-border); color:var(--status-low-text);"
-          role="alert"
-        ></div>
+          role="alert"></div>
 
         <div class="ranked-standards-section">
           <div class="standards-count-header">
-            <div
-              class="standards-count-title"
-              id="recommendations-count-text"
-            >
+            <div class="standards-count-title" id="recommendations-count-text">
               Potentially applicable standards
             </div>
 
-            <div
-              class="standards-filter-pills"
-              role="group"
-              aria-label="Filter results"
-            >
+            <div class="standards-filter-pills" role="group" aria-label="Filter results">
               <button class="filter-pill active" data-filter="all">
                 All
               </button>
@@ -419,19 +277,12 @@
             </div>
           </div>
 
-          <div
-            id="ranked-standards-list"
-            style="display:flex; flex-direction:column; gap:0.65rem;"
-          ></div>
+          <div id="ranked-standards-list" style="display:flex; flex-direction:column; gap:0.65rem;"></div>
         </div>
       </div>
     </section>
 
-    <section
-      class="view-section"
-      id="view-search"
-      aria-label="Search Indian Standards"
-    >
+    <section class="view-section" id="view-search" aria-label="Search Indian Standards">
       <div class="view-header">
         <div class="view-title-group-actions">
           <div>
@@ -447,24 +298,12 @@
       <div class="search-bar-card">
         <form id="standards-search-form">
           <div class="search-input-group">
-            <input
-              type="text"
-              id="search-query-input"
-              class="search-field"
-              placeholder="IS number or product keyword..."
-              aria-label="Search standards"
-            >
+            <input type="text" id="search-query-input" class="search-field"
+              placeholder="IS number or product keyword..." aria-label="Search standards">
 
             <button type="submit" class="btn btn-primary">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                aria-hidden="true">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
@@ -474,18 +313,9 @@
         </form>
       </div>
 
-      <div
-        class="empty-state-box"
-        id="search-empty-state"
-      >
-        <svg
-          class="empty-state-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
+      <div class="empty-state-box" id="search-empty-state">
+        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+          aria-hidden="true">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
@@ -499,16 +329,10 @@
         </div>
       </div>
 
-      <div
-        class="search-results-table-wrapper"
-        id="search-results-wrapper"
-        style="display:none;"
-      >
+      <div class="search-results-table-wrapper" id="search-results-wrapper" style="display:none;">
         <div
           style="padding:0.6rem 1rem; font-size:0.72rem; color:var(--text-tertiary); border-bottom:1px solid var(--border-default);"
-          id="search-results-stats"
-          role="status"
-        >
+          id="search-results-stats" role="status">
           Search results
         </div>
 
@@ -526,11 +350,7 @@
       </div>
     </section>
 
-    <section
-      class="view-section"
-      id="view-about"
-      aria-label="About SpecCipher"
-    >
+    <section class="view-section" id="view-about" aria-label="About SpecCipher">
       <div class="view-header">
         <div>
           <div class="view-pretitle">About</div>
@@ -574,23 +394,14 @@
 
   </main>
 
-  <div
-    class="analysis-progress-modal"
-    id="analysis-progress-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Analyzing specification"
-  >
+  <div class="analysis-progress-modal" id="analysis-progress-modal" role="dialog" aria-modal="true"
+    aria-label="Analyzing specification">
     <div class="progress-box">
       <div class="progress-header">
         <div class="progress-title">Analyzing specification</div>
       </div>
 
-      <div
-        class="progress-bar-wrap"
-        role="progressbar"
-        aria-label="Analysis in progress"
-      >
+      <div class="progress-bar-wrap" role="progressbar" aria-label="Analysis in progress">
         <div class="progress-bar-fill"></div>
       </div>
 
@@ -606,13 +417,8 @@
     </div>
   </div>
 
-  <div
-    class="drawer-overlay"
-    id="standard-details-drawer"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Standard details"
-  >
+  <div class="drawer-overlay" id="standard-details-drawer" role="dialog" aria-modal="true"
+    aria-label="Standard details">
     <div class="drawer-panel">
       <div class="drawer-header">
         <div>
@@ -670,22 +476,14 @@
         <div>
           <div class="detail-section-title">Related standards</div>
           <div class="relationship-graph-container">
-            <div
-              id="graph-empty-state"
-              class="empty-state-box"
-              style="padding:1.5rem 1rem; border:none;"
-            >
+            <div id="graph-empty-state" class="empty-state-box" style="padding:1.5rem 1rem; border:none;">
               <div class="empty-state-desc">
                 No related standards data returned for this result.
               </div>
             </div>
 
-            <svg
-              id="standards-graph-svg"
-              class="graph-svg-wrapper"
-              style="display:none;"
-              aria-label="Related standards graph"
-            ></svg>
+            <svg id="standards-graph-svg" class="graph-svg-wrapper" style="display:none;"
+              aria-label="Related standards graph"></svg>
 
             <div class="graph-legend">
               <div class="legend-item">
@@ -728,7 +526,7 @@
     </div>
   </footer>
 
-  <script src="js/config.js"></script>
+  <!-- <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/graph.js"></script>
@@ -736,7 +534,9 @@
   <script src="js/results.js"></script>
   <script src="js/search.js"></script>
   <script src="js/analyze.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js"></script> -->
+  <script src="js/api_s.js"></script>
 
 </body>
+
 </html>
