@@ -1,5 +1,5 @@
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:5000',
+    API_BASE_URL: '',
 
     ENDPOINTS: {
         ANALYZE: '/get_result',
