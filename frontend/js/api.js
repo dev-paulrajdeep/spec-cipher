@@ -140,6 +140,7 @@ window.apiClient =
   new ApiClient(CONFIG.API_BASE_URL);
 
 // SAPTAK: ami just check koroner liga ikhane leksilam ida...still keeping it to link later...
+//siddhartha: sera yar
 
 // async function send_to_flask() {
 //     const response = await fetch("http://127.0.0.1:5000/get_result");
