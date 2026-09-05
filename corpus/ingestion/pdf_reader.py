@@ -3,10 +3,10 @@ PDF reader for the SpecCipher corpus ingestion pipeline.
 
 This module is responsible only for:
     - Opening PDF documents (from disk or in-memory bytes)
-    - Reading page-level text
-    - Preserving page boundaries
-    - Returning basic document information, including signals needed
-      to decide whether OCR is required downstream
+    - Reading page-level text blocks, tables, images, and vector-drawing signals
+    - Preserving page boundaries, dimensions, and bounding boxes
+    - Persisting raw visual assets when an asset directory is supplied
+    - Returning OCR-routing signals without performing OCR itself
 
 Text cleaning, metadata extraction, section detection, and chunking
 belong to downstream corpus modules.
@@ -17,8 +17,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+import hashlib
 
 import pymupdf  # PyMuPDF
+
+from corpus.models import BoundingBox, ElementProvenance, Figure, Table, TextBlock
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,13 @@ class PDFPage:
 
     page_number: int
     text: str
+    width: float | None = None
+    height: float | None = None
+    bbox: BoundingBox | None = None
+    asset_path: str | None = None
+    text_blocks: tuple[TextBlock, ...] = ()
+    tables: tuple[Table, ...] = ()
+    figures: tuple[Figure, ...] = ()
     # Internal: plain-text extraction used to judge text density, kept
     # separate from `text` so a non-default extraction_mode (e.g. "html")
     # can never mask a blank/scanned page behind markup boilerplate.
@@ -78,6 +88,7 @@ class PDFDocument:
     source_file: str
     page_count: int
     pages: list[PDFPage] = field(default_factory=list)
+    asset_directory: str | None = None
 
     @property
     def sparse_page_numbers(self) -> list[int]:
@@ -134,7 +145,7 @@ class PDFReader:
             )
         self.extraction_mode = extraction_mode
 
-    def read(self, file_path: str | Path) -> PDFDocument:
+    def read(self, file_path: str | Path, *, asset_directory: str | Path | None = None) -> PDFDocument:
         """
         Read a PDF from disk and return its page-preserving raw text.
 
@@ -162,9 +173,11 @@ class PDFReader:
             raise ValueError(f"Expected a PDF file, got: {path.suffix}")
 
         document = self._open(path, stream=None)
-        return self._extract(document, source_name=path.name)
+        return self._extract(document, source_name=path.name, asset_directory=asset_directory)
 
-    def read_bytes(self, data: bytes, source_name: str = "<upload>") -> PDFDocument:
+    def read_bytes(
+        self, data: bytes, source_name: str = "<upload>", *, asset_directory: str | Path | None = None
+    ) -> PDFDocument:
         """
         Read a PDF from an in-memory byte string (e.g. a Flask file
         upload) without requiring it to be written to disk first.
@@ -186,7 +199,7 @@ class PDFReader:
             raise ValueError("No PDF data provided.")
 
         document = self._open(path=None, stream=data)
-        return self._extract(document, source_name=source_name)
+        return self._extract(document, source_name=source_name, asset_directory=asset_directory)
 
     def _open(
         self, path: Path | None, stream: bytes | None
@@ -216,19 +229,14 @@ class PDFReader:
 
         return document
 
-    def _extract(self, document: pymupdf.Document, source_name: str) -> PDFDocument:
-        """Extract page-level text from an already-opened, validated document."""
+    def _extract(
+        self, document: pymupdf.Document, source_name: str, asset_directory: str | Path | None
+    ) -> PDFDocument:
+        """Extract deterministic text, layout, tables, and visual assets from a PDF."""
+        asset_root = Path(asset_directory) if asset_directory is not None else None
         try:
             pages = [
-                PDFPage(
-                    page_number=page_number,
-                    text=page.get_text(self.extraction_mode),
-                    _sparsity_text=(
-                        page.get_text("text")
-                        if self.extraction_mode != "text"
-                        else None
-                    ),
-                )
+                self._extract_page(page, page_number, source_name, asset_root)
                 for page_number, page in enumerate(document, start=1)
             ]
             page_count = len(document)
@@ -243,6 +251,7 @@ class PDFReader:
             source_file=source_name,
             page_count=page_count,
             pages=pages,
+            asset_directory=str(asset_root) if asset_root is not None else None,
         )
 
         if pdf_document.likely_scanned:
@@ -255,3 +264,193 @@ class PDFReader:
             )
 
         return pdf_document
+
+    def _extract_page(
+        self, page: pymupdf.Page, page_number: int, source_name: str, asset_root: Path | None
+    ) -> PDFPage:
+        rect = page.rect
+        page_bbox = self._bbox(rect)
+        provenance = ElementProvenance(source_name, None, page_number)
+        page_asset = self._render_page(page, page_number, asset_root)
+        text_blocks = tuple(
+            TextBlock(
+                id=self._element_id(source_name, page_number, "text", index),
+                standard_id=None,
+                page_number=page_number,
+                bbox=BoundingBox(float(x0), float(y0), float(x1), float(y1)),
+                type="text",
+                content=text.strip(),
+                provenance=provenance,
+            )
+            for index, (x0, y0, x1, y1, text, _, block_type) in enumerate(
+                page.get_text("blocks", sort=True), start=1
+            )
+            if block_type == 0 and text.strip()
+        )
+        tables = self._extract_tables(page, page_number, source_name, provenance)
+        figures = [*self._extract_images(page, page_number, source_name, provenance, asset_root)]
+        vector = self._extract_vector_figure(
+            page, page_number, source_name, provenance, page_asset, tables
+        )
+        if vector is not None:
+            figures.append(vector)
+        return PDFPage(
+            page_number=page_number,
+            text=page.get_text(self.extraction_mode),
+            width=float(rect.width),
+            height=float(rect.height),
+            bbox=page_bbox,
+            asset_path=page_asset,
+            text_blocks=text_blocks,
+            tables=tables,
+            figures=tuple(figures),
+            _sparsity_text=page.get_text("text") if self.extraction_mode != "text" else None,
+        )
+
+    @staticmethod
+    def _bbox(rect: pymupdf.Rect) -> BoundingBox:
+        return BoundingBox(float(rect.x0), float(rect.y0), float(rect.x1), float(rect.y1))
+
+    @staticmethod
+    def _element_id(source_name: str, page_number: int, kind: str, ordinal: int) -> str:
+        identity = f"{source_name}|{page_number}|{kind}|{ordinal}"
+        return f"{kind}_{hashlib.sha256(identity.encode('utf-8')).hexdigest()[:20]}"
+
+    @staticmethod
+    def _asset_path(asset_root: Path, *parts: str) -> Path:
+        path = asset_root.joinpath(*parts)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _render_page(self, page: pymupdf.Page, page_number: int, asset_root: Path | None) -> str | None:
+        if asset_root is None:
+            return None
+        target = self._asset_path(asset_root, "pages", f"page-{page_number:04d}.png")
+        page.get_pixmap(dpi=144, alpha=False).save(target)
+        return str(target)
+
+    def _extract_tables(
+        self, page: pymupdf.Page, page_number: int, source_name: str, provenance: ElementProvenance
+    ) -> tuple[Table, ...]:
+        try:
+            found = page.find_tables()
+        except Exception as exc:
+            logger.warning("Table detection failed on %s page %d: %s", source_name, page_number, exc)
+            return ()
+        tables: list[Table] = []
+        for index, table in enumerate(found.tables, start=1):
+            extracted_rows = tuple(
+                tuple("" if cell is None else str(cell).strip() for cell in row)
+                for row in table.extract()
+            )
+            header = tuple("" if name is None else str(name).strip() for name in table.header.names)
+            if not any(header) and extracted_rows:
+                header, extracted_rows = extracted_rows[0], extracted_rows[1:]
+            elif not table.header.external and extracted_rows and extracted_rows[0] == header:
+                extracted_rows = extracted_rows[1:]
+            tables.append(
+                Table(
+                    id=self._element_id(source_name, page_number, "table", index),
+                    standard_id=None,
+                    page_number=page_number,
+                    bbox=BoundingBox(*map(float, table.bbox)),
+                    type="table",
+                    headers=header,
+                    rows=extracted_rows,
+                    content=self._table_text(header, extracted_rows),
+                    provenance=provenance,
+                )
+            )
+        return tuple(tables)
+
+    @staticmethod
+    def _table_text(headers: tuple[str, ...], rows: tuple[tuple[str, ...], ...]) -> str:
+        labels = headers or tuple(
+            f"Column {index + 1}" for index in range(max((len(row) for row in rows), default=0))
+        )
+        lines = ["Table: " + " | ".join(labels)] if labels else ["Table"]
+        for row in rows:
+            values = [
+                f"{labels[index] if index < len(labels) else f'Column {index + 1}'}: {value}"
+                for index, value in enumerate(row)
+            ]
+            lines.append("; ".join(values))
+        return "\n".join(lines)
+
+    def _extract_images(
+        self, page: pymupdf.Page, page_number: int, source_name: str, provenance: ElementProvenance,
+        asset_root: Path | None,
+    ) -> tuple[Figure, ...]:
+        figures: list[Figure] = []
+        seen_xrefs: set[int] = set()
+        for image in page.get_images(full=True):
+            xref = image[0]
+            if xref in seen_xrefs:
+                continue
+            seen_xrefs.add(xref)
+            try:
+                image_data = page.parent.extract_image(xref)
+                extension = image_data.get("ext", "bin")
+                asset_path = None
+                if asset_root is not None:
+                    target = self._asset_path(asset_root, "images", f"image-{xref}.{extension}")
+                    target.write_bytes(image_data["image"])
+                    asset_path = str(target)
+                for occurrence, rect in enumerate(page.get_image_rects(xref), start=1):
+                    figures.append(
+                        Figure(
+                            id=self._element_id(source_name, page_number, "image", len(figures) + occurrence),
+                            standard_id=None,
+                            page_number=page_number,
+                            bbox=self._bbox(rect),
+                            type="image",
+                            asset_path=asset_path or "",
+                            provenance=provenance,
+                            content=f"Embedded image xref {xref}",
+                        )
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Image extraction failed on %s page %d xref %d: %s",
+                    source_name,
+                    page_number,
+                    xref,
+                    exc,
+                )
+        return tuple(figures)
+
+    def _extract_vector_figure(
+        self, page: pymupdf.Page, page_number: int, source_name: str, provenance: ElementProvenance,
+        page_asset: str | None, tables: tuple[Table, ...],
+    ) -> Figure | None:
+        try:
+            drawings = [
+                drawing["rect"] for drawing in page.get_drawings() if drawing["rect"].get_area() > 0
+            ]
+        except Exception as exc:
+            logger.warning("Vector drawing detection failed on %s page %d: %s", source_name, page_number, exc)
+            return None
+        if not drawings or page_asset is None:
+            return None
+        visual_rects = [
+            rect for rect in drawings if not any(self._contained_in(rect, table.bbox) for table in tables)
+        ]
+        if not visual_rects:
+            return None
+        union = pymupdf.Rect(visual_rects[0])
+        for rect in visual_rects[1:]:
+            union.include_rect(rect)
+        return Figure(
+            id=self._element_id(source_name, page_number, "vector_figure", 1),
+            standard_id=None,
+            page_number=page_number,
+            bbox=self._bbox(union),
+            type="vector_figure",
+            asset_path=page_asset,
+            provenance=provenance,
+            content=f"{len(visual_rects)} vector drawing(s); use the full-page render and bounding box.",
+        )
+
+    @staticmethod
+    def _contained_in(rect: pymupdf.Rect, bbox: BoundingBox) -> bool:
+        return rect.x0 >= bbox.x0 and rect.y0 >= bbox.y0 and rect.x1 <= bbox.x1 and rect.y1 <= bbox.y1

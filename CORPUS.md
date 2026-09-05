@@ -12,6 +12,12 @@ PDF/TXT -> page-preserving ingestion -> optional sparse-page OCR
         -> section-aware chunks -> canonical JSON and chunks JSONL
 ```
 
+For PDFs, ingestion is multimodal but deterministic: PyMuPDF emits text blocks
+with bounding boxes, detected tables with headers/rows plus a retrieval-text
+projection, embedded raster images, vector-drawing regions, page dimensions,
+and a 144-DPI full-page PNG. The PNG is a fallback for every page, so visual
+content not recognized as an image or figure remains reviewable without a VLM.
+
 `corpus.ingestion` owns source reading and preserves raw page boundaries.
 `corpus.processing` retains raw and cleaned page text separately, removes only
 high-confidence extraction artifacts, and detects common numbered clauses,
@@ -23,13 +29,34 @@ section boundary.
 
 `StandardDocument` is the single downstream representation. Its JSON contains
 `schema_version`, `metadata`, `pages`, `sections`, `relationships`, `chunks`,
-and `validation`. The internal section fragments preserve page provenance for
-chunking while the public section record exposes its page range.
+`validation`, and (when applicable) `raw_asset_directory`. Schema `1.1` adds
+spatial data without changing the retrieval JSONL contract.
+
+Each canonical PDF page records its `id`, `standard_id`, `page_number`, page
+`bbox`, width, height, page-render `asset_path`, and provenance. It owns
+`text_blocks`, `tables`, and `figures`. Every element has an id, page bounding
+box, type, content or asset path, and provenance. Table `content` is a
+labelled, retrieval-friendly text rendering; headers and rows remain separate
+structured fields. Element provenance carries the source, standard, page, and
+all conservatively applicable detected clause and chunk ids. Exact geometric
+clause assignment is intentionally not guessed when a page has multiple
+clauses.
 
 Every retrieval chunk has `chunk_id`, `standard_number`, `source_file`,
 `page_start`, `page_end`, `section_number`, `section_title`, and `text`.
 Unknown metadata stays `null`; it is never filled with a guess. Validation
 reports errors, warnings, and uncertain extractions without deleting content.
+Canonical chunks additionally retain `element_ids`; this is deliberately not
+added to JSONL so existing retrieval loaders and indexes stay compatible.
+
+## Raw visual assets
+
+`CorpusBuilder.build("standard.pdf")` writes raw visual assets to a sibling
+`standard.assets/` directory by default. Pass `raw_asset_directory=` to the
+builder (or to `build_bytes`) to choose a durable asset store. Byte uploads
+without an explicit directory use `corpus_assets/<source-stem>/` under the
+current working directory. These files are raw evidence; normalized text and
+the retrieval JSONL remain separate.
 
 ## OCR
 
@@ -62,7 +89,10 @@ document = builder.build_and_write(
 
 Configure chunking with `DocumentChunker(ChunkingConfig(max_chars=2000,
 overlap_chars=200))` and inject it into `CorpusBuilder` when a different
-retrieval budget is needed.
+retrieval budget is needed. Retrieval can continue to embed the unchanged
+chunk JSONL. Explainability can dereference a chunk's canonical `element_ids`
+and then use element provenance, coordinates, tables, or page image to show
+the underlying source evidence.
 
 ## Tests
 

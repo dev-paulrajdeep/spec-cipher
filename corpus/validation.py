@@ -33,6 +33,21 @@ class CorpusValidator:
         for page in document.pages:
             if not page.raw_text.strip() and not page.cleaned_text.strip():
                 issues.append(ValidationIssue("warning", "empty_page", "Source page contains no extracted text.", page.page_number))
+            if (page.width is None) != (page.height is None):
+                issues.append(ValidationIssue("error", "incomplete_page_dimensions", "Page width and height must be recorded together.", page.page_number))
+            if page.width is not None and (page.width <= 0 or page.height is None or page.height <= 0):
+                issues.append(ValidationIssue("error", "invalid_page_dimensions", "Page dimensions must be positive.", page.page_number))
+            for element in (*page.text_blocks, *page.tables, *page.figures):
+                if not element.id:
+                    issues.append(ValidationIssue("error", "missing_element_id", "A page element has no identifier.", page.page_number))
+                if element.page_number != page.page_number:
+                    issues.append(ValidationIssue("error", "element_page_mismatch", f"Element {element.id} belongs to a different page.", page.page_number))
+                if element.provenance.page_number != page.page_number or element.provenance.source_file != metadata.source_file:
+                    issues.append(ValidationIssue("error", "invalid_element_provenance", f"Element {element.id} has inconsistent provenance.", page.page_number))
+                if metadata.standard_number and element.standard_id != metadata.standard_number:
+                    issues.append(ValidationIssue("error", "element_standard_mismatch", f"Element {element.id} has inconsistent standard provenance.", page.page_number))
+                if element.type in {"image", "vector_figure"} and not element.asset_path:
+                    issues.append(ValidationIssue("error", "missing_figure_asset", f"Figure {element.id} has no persisted asset path.", page.page_number))
         identifiers: set[str] = set()
         for chunk in document.chunks:
             if chunk.chunk_id in identifiers:

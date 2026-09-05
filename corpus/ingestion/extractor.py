@@ -5,7 +5,7 @@ corpus pipeline.
 This module is responsible only for:
     - Detecting the format of a raw source document
     - Dispatching to the correct format-specific reader (e.g. PDFReader)
-    - Producing a single, format-agnostic ExtractedDocument
+    - Producing a single, format-agnostic ExtractedDocument with optional layout/assets
     - Passing through OCR-need signals so downstream processing knows
       which pages/documents require an OCR pass
 
@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from corpus.models import BoundingBox, Figure, Table, TextBlock
+
 from .pdf_reader import EncryptedPDFError, PDFDocument, PDFReadError, PDFReader
 
 logger = logging.getLogger(__name__)
@@ -34,6 +36,13 @@ class ExtractedPage:
 
     page_number: int
     text: str
+    width: float | None = None
+    height: float | None = None
+    bbox: BoundingBox | None = None
+    asset_path: str | None = None
+    text_blocks: tuple[TextBlock, ...] = ()
+    tables: tuple[Table, ...] = ()
+    figures: tuple[Figure, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -56,6 +65,7 @@ class ExtractedDocument:
     # where applicable (currently only PDFReader produces these).
     sparse_page_numbers: list[int] = field(default_factory=list)
     likely_scanned: bool = False
+    asset_directory: str | None = None
 
     @property
     def full_text(self) -> str:
@@ -106,7 +116,9 @@ class DocumentExtractor:
         """File extensions this extractor currently knows how to handle."""
         return sorted(self._extractors)
 
-    def extract(self, file_path: str | Path) -> ExtractedDocument:
+    def extract(
+        self, file_path: str | Path, *, asset_directory: str | Path | None = None
+    ) -> ExtractedDocument:
         """
         Extract a document from disk, regardless of format.
 
@@ -141,7 +153,11 @@ class DocumentExtractor:
             )
 
         try:
-            document = extractor_fn(path)
+            document = (
+                self._extract_pdf(path, asset_directory)
+                if extension == ".pdf"
+                else extractor_fn(path)
+            )
         except ExtractionError:
             raise
         except Exception as exc:
@@ -156,7 +172,12 @@ class DocumentExtractor:
         return document
 
     def extract_bytes(
-        self, data: bytes, source_name: str, source_format: str
+        self,
+        data: bytes,
+        source_name: str,
+        source_format: str,
+        *,
+        asset_directory: str | Path | None = None,
     ) -> ExtractedDocument:
         """
         Extract a document from in-memory bytes (e.g. a Flask upload),
@@ -189,7 +210,9 @@ class DocumentExtractor:
 
         try:
             if extension == ".pdf":
-                pdf_document = self._pdf_reader.read_bytes(data, source_name=source_name)
+                pdf_document = self._pdf_reader.read_bytes(
+                    data, source_name=source_name, asset_directory=asset_directory
+                )
                 document = self._from_pdf_document(pdf_document)
             else:  # ".txt"
                 text = data.decode("utf-8", errors="replace")
@@ -211,9 +234,9 @@ class DocumentExtractor:
 
     # -- format-specific extraction, one method per registered format ---
 
-    def _extract_pdf(self, path: Path) -> ExtractedDocument:
+    def _extract_pdf(self, path: Path, asset_directory: str | Path | None = None) -> ExtractedDocument:
         try:
-            pdf_document = self._pdf_reader.read(path)
+            pdf_document = self._pdf_reader.read(path, asset_directory=asset_directory)
         except (PDFReadError, EncryptedPDFError) as exc:
             raise ExtractionError(str(exc)) from exc
         return self._from_pdf_document(pdf_document)
@@ -225,11 +248,22 @@ class DocumentExtractor:
             source_format="pdf",
             page_count=pdf_document.page_count,
             pages=[
-                ExtractedPage(page_number=p.page_number, text=p.text)
+                ExtractedPage(
+                    page_number=p.page_number,
+                    text=p.text,
+                    width=p.width,
+                    height=p.height,
+                    bbox=p.bbox,
+                    asset_path=p.asset_path,
+                    text_blocks=p.text_blocks,
+                    tables=p.tables,
+                    figures=p.figures,
+                )
                 for p in pdf_document.pages
             ],
             sparse_page_numbers=pdf_document.sparse_page_numbers,
             likely_scanned=pdf_document.likely_scanned,
+            asset_directory=pdf_document.asset_directory,
         )
 
     def _extract_txt(self, path: Path) -> ExtractedDocument:

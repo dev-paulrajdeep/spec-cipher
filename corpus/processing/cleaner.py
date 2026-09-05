@@ -33,6 +33,13 @@ class TextCleaner:
                     page_number=source_page.page_number,
                     raw_text=source_page.text,
                     cleaned_text=cleaned,
+                    bbox=source_page.bbox,
+                    width=source_page.width,
+                    height=source_page.height,
+                    asset_path=source_page.asset_path,
+                    text_blocks=source_page.text_blocks,
+                    tables=source_page.tables,
+                    figures=source_page.figures,
                 )
             )
         return tuple(pages)

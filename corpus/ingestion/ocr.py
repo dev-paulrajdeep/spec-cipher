@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 from typing import Protocol
 
@@ -57,11 +57,12 @@ class OCRRouter:
             source_format=document.source_format,
             page_count=document.page_count,
             pages=[
-                ExtractedPage(page.page_number, replacements.get(page.page_number, page.text))
+                replace(page, text=replacements.get(page.page_number, page.text))
                 for page in document.pages
             ],
             sparse_page_numbers=[number for number in requested if number not in replacements],
             likely_scanned=document.likely_scanned and not bool(replacements),
+            asset_directory=document.asset_directory,
         )
         logger.info("OCR applied to %d page(s) for '%s'.", len(replacements), document.source_file)
         return OCRRoutingResult(merged, tuple(sorted(replacements)), tuple(warnings))
