@@ -14,8 +14,8 @@ def index():
 @app.route("/<path:filename>")
 def frontend_files(filename):
     # allowed = {"css", "js", "png", "jpg", "html"}
-    if filename.split(".")[-1] not in allowed:
-        return jsonify({"status": "error", "message": "File type not allowed"}), 403
+    #if filename.split(".")[-1] not in allowed:
+        #return jsonify({"status": "error", "message": "File type not allowed"}), 403
     return send_from_directory(FRONTEND_DIR, filename)
 
 @app.route("/get_result", methods=["POST"])
