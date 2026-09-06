@@ -32,17 +32,12 @@ class SemanticRetriever:
         self._chunks = {chunk.chunk_id: chunk for chunk in chunks}
         self._default_top_k = default_top_k
 
-    @property
-    def index(self) -> FaissIndex:
-        """Index access for retrieval-layer persistence; intelligence never needs it."""
-        return self._index
-
     def search(self, query: str, top_k: int | None = None) -> tuple[RetrievalResult, ...]:
         """Return at most Top-K chunks ordered by decreasing cosine similarity."""
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query must be a non-empty string")
         requested = self._default_top_k if top_k is None else top_k
-        if requested < 1:
+        if not isinstance(requested, int) or isinstance(requested, bool) or requested < 1:
             raise ValueError("top_k must be positive")
         started = perf_counter()
         vector = np.asarray(self._encoder.encode_text(query), dtype=np.float32)

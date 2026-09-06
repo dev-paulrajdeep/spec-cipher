@@ -28,6 +28,32 @@ class IndexMetadata:
     chunk_count: int
     created_at_utc: str
 
+    def __post_init__(self) -> None:
+        if self.schema_version != "1.0" or self.index_type != "IndexFlatIP":
+            raise ValueError("Unsupported persisted index format")
+        if not isinstance(self.embedding_model, str) or not self.embedding_model.strip():
+            raise ValueError("Persisted embedding model is invalid")
+        if (
+            not isinstance(self.embedding_dimension, int)
+            or isinstance(self.embedding_dimension, bool)
+            or self.embedding_dimension < 1
+        ):
+            raise ValueError("Persisted embedding dimension is invalid")
+        if not isinstance(self.normalize_embeddings, bool):
+            raise ValueError("Persisted normalization setting is invalid")
+        if self.corpus_schema_version is not None and not isinstance(self.corpus_schema_version, str):
+            raise ValueError("Persisted corpus schema version is invalid")
+        if (
+            not isinstance(self.corpus_fingerprint, str)
+            or len(self.corpus_fingerprint) != 64
+            or any(character not in "0123456789abcdef" for character in self.corpus_fingerprint)
+        ):
+            raise ValueError("Persisted corpus fingerprint is invalid")
+        if not isinstance(self.chunk_count, int) or isinstance(self.chunk_count, bool) or self.chunk_count < 1:
+            raise ValueError("Persisted chunk count is invalid")
+        if not isinstance(self.created_at_utc, str) or not self.created_at_utc.strip():
+            raise ValueError("Persisted creation timestamp is invalid")
+
     @classmethod
     def create(
         cls,
@@ -110,14 +136,20 @@ class IndexPersistence:
             raise IndexCompatibilityError("Persisted chunk-ID mapping is malformed")
         if not isinstance(rows, list):
             raise IndexCompatibilityError("Persisted chunks are malformed")
-        chunks = tuple(DocumentChunk(**row) for row in rows)
+        chunks = self._chunks_from_rows(rows)
         if tuple(chunk.chunk_id for chunk in chunks) != tuple(chunk_ids):
             raise IndexCompatibilityError("Persisted chunks do not match the explicit ID mapping")
         if corpus_fingerprint(chunks) != metadata.corpus_fingerprint:
             raise IndexCompatibilityError("Persisted chunks do not match the recorded corpus fingerprint")
         faiss = FaissIndex._import_faiss()
-        native = faiss.read_index(str(source / self.INDEX_FILE))
-        index = FaissIndex.from_native(native, chunk_ids)
+        try:
+            native = faiss.read_index(str(source / self.INDEX_FILE))
+        except Exception as exc:
+            raise IndexCompatibilityError("Persisted FAISS index could not be read") from exc
+        try:
+            index = FaissIndex.from_native(native, chunk_ids)
+        except ValueError as exc:
+            raise IndexCompatibilityError(f"Persisted FAISS index is incompatible: {exc}") from exc
         if index.dimension != metadata.embedding_dimension or index.count != metadata.chunk_count:
             raise IndexCompatibilityError("Persisted FAISS index does not match its metadata")
         return PersistedIndex(index=index, chunks=chunks, metadata=metadata)
@@ -130,6 +162,8 @@ class IndexPersistence:
     def _read_json(path: Path):
         try:
             return json.loads(path.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise IndexCompatibilityError(f"Persisted JSON could not be read: {path.name}") from exc
         except json.JSONDecodeError as exc:
             raise IndexCompatibilityError(f"Invalid persisted JSON in {path.name}: {exc.msg}") from exc
 
@@ -139,8 +173,66 @@ class IndexPersistence:
             raise IndexCompatibilityError("Persisted metadata is malformed")
         try:
             return IndexMetadata(**value)
-        except TypeError as exc:
+        except (TypeError, ValueError) as exc:
             raise IndexCompatibilityError("Persisted metadata fields are invalid") from exc
+
+    @staticmethod
+    def _chunks_from_rows(rows: object) -> tuple[DocumentChunk, ...]:
+        """Validate persisted chunks before they become provenance-bearing results."""
+        if not isinstance(rows, list):
+            raise IndexCompatibilityError("Persisted chunks are malformed")
+        chunks: list[DocumentChunk] = []
+        required = {
+            "chunk_id", "standard_number", "source_file", "page_start", "page_end",
+            "section_number", "section_title", "text",
+        }
+        for position, row in enumerate(rows, start=1):
+            if not isinstance(row, dict) or required.difference(row):
+                raise IndexCompatibilityError(f"Persisted chunk {position} is malformed")
+            chunk_id = row["chunk_id"]
+            source_file = row["source_file"]
+            text = row["text"]
+            standard_number = row["standard_number"]
+            if (
+                not isinstance(chunk_id, str) or not chunk_id.strip()
+                or not isinstance(source_file, str) or not source_file.strip()
+                or not isinstance(text, str) or not text.strip()
+                or (standard_number is not None and (not isinstance(standard_number, str) or not standard_number.strip()))
+            ):
+                raise IndexCompatibilityError(f"Persisted chunk {position} has invalid provenance or text")
+            page_start = row["page_start"]
+            page_end = row["page_end"]
+            if (
+                not isinstance(page_start, int) or isinstance(page_start, bool)
+                or not isinstance(page_end, int) or isinstance(page_end, bool)
+                or page_start < 1 or page_end < page_start
+            ):
+                raise IndexCompatibilityError(f"Persisted chunk {position} has an invalid page range")
+            section_number = row["section_number"]
+            section_title = row["section_title"]
+            if any(value is not None and not isinstance(value, str) for value in (section_number, section_title)):
+                raise IndexCompatibilityError(f"Persisted chunk {position} has invalid section metadata")
+            element_ids = row.get("element_ids", [])
+            if (
+                not isinstance(element_ids, list)
+                or any(not isinstance(value, str) or not value.strip() for value in element_ids)
+            ):
+                raise IndexCompatibilityError(f"Persisted chunk {position} has invalid element provenance")
+            chunks.append(DocumentChunk(
+                chunk_id=chunk_id,
+                standard_number=standard_number,
+                source_file=source_file,
+                page_start=page_start,
+                page_end=page_end,
+                section_number=section_number,
+                section_title=section_title,
+                text=text,
+                element_ids=tuple(element_ids),
+            ))
+        chunk_ids = [chunk.chunk_id for chunk in chunks]
+        if len(chunk_ids) != len(set(chunk_ids)):
+            raise IndexCompatibilityError("Persisted chunks contain duplicate chunk IDs")
+        return tuple(chunks)
 
     @staticmethod
     def _validate_compatibility(metadata: IndexMetadata, model: str, dimension: int, normalized: bool) -> None:

@@ -12,7 +12,9 @@ serve an API.
 must contain the corpus `DocumentChunk` fields: `chunk_id`, `standard_number`,
 `source_file`, `page_start`, `page_end`, `section_number`, `section_title`, and
 `text`. It rejects malformed records, invalid ranges, empty provenance, and
-duplicate IDs before any embedding is computed.
+duplicate IDs before any embedding is computed. `standard_number` may be
+`null` when the corpus has no evidenced identifier (for example, a Special
+Publication); retrieval preserves that uncertainty rather than inventing one.
 
 ## Flow
 
@@ -26,6 +28,10 @@ The default encoder is the pretrained
 Sentence Transformers and normalizes all vectors. Therefore `IndexFlatIP`
 scores are cosine similarities: they measure semantic proximity only, never
 applicability or confidence.
+
+`RetrievalConfig.batch_size` defaults to 16, a conservative setting verified
+against the repository's large SP 7 chunks. Deployments with measured memory
+headroom may set a larger value explicitly when building an index.
 
 ## Persistence and reproducibility
 

@@ -75,7 +75,7 @@ class RetrievalPipeline:
             corpus_schema_version=loaded.schema_version,
             chunks=loaded.chunks,
         )
-        self.persistence.save(directory, retriever.index, loaded.chunks, metadata)
+        self.persistence.save(directory, retriever._index, loaded.chunks, metadata)
         return retriever
 
     def load(self, directory: str | Path) -> SemanticRetriever:

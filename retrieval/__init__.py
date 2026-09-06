@@ -6,5 +6,11 @@ applicability assessment, reranking, or serving concerns.
 
 from .config import RetrievalConfig
 from .pipeline import RetrievalPipeline
+from .service import RetrievalService, RetrievalUnavailableError
 
-__all__ = ["RetrievalConfig", "RetrievalPipeline"]
+__all__ = [
+    "RetrievalConfig",
+    "RetrievalPipeline",
+    "RetrievalService",
+    "RetrievalUnavailableError",
+]

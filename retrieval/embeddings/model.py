@@ -12,7 +12,7 @@ class SentenceTransformerEncoder:
     synthetic encoder and never download model weights.
     """
 
-    def __init__(self, model_name: str, batch_size: int = 32, normalize_embeddings: bool = True) -> None:
+    def __init__(self, model_name: str, batch_size: int = 16, normalize_embeddings: bool = True) -> None:
         if not model_name.strip():
             raise ValueError("model_name must not be empty")
         if batch_size < 1:
@@ -32,7 +32,9 @@ class SentenceTransformerEncoder:
 
     @property
     def dimension(self) -> int:
-        dimension = self._load_model().get_sentence_embedding_dimension()
+        model = self._load_model()
+        getter = getattr(model, "get_embedding_dimension", None)
+        dimension = getter() if getter is not None else model.get_sentence_embedding_dimension()
         if not dimension:
             raise RuntimeError("Sentence Transformer did not report an embedding dimension")
         return int(dimension)

@@ -34,10 +34,13 @@ class FaissIndex:
     @classmethod
     def from_native(cls, native, chunk_ids: list[str]) -> "FaissIndex":
         """Wrap a deserialised index after persistence has validated its shape."""
+        faiss = cls._import_faiss()
+        if not isinstance(native, faiss.IndexFlatIP):
+            raise ValueError("Loaded FAISS index must be an IndexFlatIP")
         if native.d < 1:
             raise ValueError("Loaded FAISS index has an invalid dimension")
         instance = cls.__new__(cls)
-        instance._faiss = cls._import_faiss()
+        instance._faiss = faiss
         instance._native = native
         instance._chunk_ids = list(chunk_ids)
         if native.ntotal != len(chunk_ids):
@@ -77,7 +80,7 @@ class FaissIndex:
 
     def search(self, query_vectors: np.ndarray, top_k: int) -> list[list[IndexSearchHit]]:
         values = self._validated_vectors(query_vectors)
-        if top_k < 1:
+        if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k < 1:
             raise ValueError("top_k must be positive")
         self._validate_unit_norms(values)
         if self.count == 0:

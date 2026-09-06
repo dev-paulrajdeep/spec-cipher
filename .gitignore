@@ -221,3 +221,6 @@ __marimo__/
 # Large PDF files
 corpus/data/*.json
 corpus/data/*.jsonl
+
+#Temp testing files
+.tmp

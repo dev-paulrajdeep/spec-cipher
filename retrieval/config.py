@@ -11,7 +11,9 @@ class RetrievalConfig:
     """Configuration recorded with each persisted semantic index."""
 
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    batch_size: int = 32
+    # Verified on the repository's large SP 7 chunks.  Larger batches may be
+    # selected explicitly by a deployment with sufficient memory.
+    batch_size: int = 16
     normalize_embeddings: bool = True
     top_k: int = 5
     index_type: str = "IndexFlatIP"
@@ -19,11 +21,11 @@ class RetrievalConfig:
     index_directory: Path | None = None
 
     def __post_init__(self) -> None:
-        if not self.embedding_model.strip():
+        if not isinstance(self.embedding_model, str) or not self.embedding_model.strip():
             raise ValueError("embedding_model must not be empty")
-        if self.batch_size < 1:
+        if not isinstance(self.batch_size, int) or isinstance(self.batch_size, bool) or self.batch_size < 1:
             raise ValueError("batch_size must be positive")
-        if self.top_k < 1:
+        if not isinstance(self.top_k, int) or isinstance(self.top_k, bool) or self.top_k < 1:
             raise ValueError("top_k must be positive")
         if self.index_type != "IndexFlatIP":
             raise ValueError("Only the exact IndexFlatIP strategy is currently supported")

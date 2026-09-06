@@ -84,10 +84,14 @@ class CorpusChunkLoader:
         missing = [field for field in _REQUIRED_FIELDS if field not in row]
         if missing:
             raise CorpusChunkLoadError(f"{location} is missing required fields: {', '.join(missing)}")
-        string_fields = ("chunk_id", "standard_number", "source_file", "text")
+        string_fields = ("chunk_id", "source_file", "text")
         for field in string_fields:
             if not isinstance(row[field], str) or not row[field].strip():
                 raise CorpusChunkLoadError(f"{location}.{field} must be a non-empty string")
+        if row["standard_number"] is not None and (
+            not isinstance(row["standard_number"], str) or not row["standard_number"].strip()
+        ):
+            raise CorpusChunkLoadError(f"{location}.standard_number must be a non-empty string or null")
         for field in ("page_start", "page_end"):
             if not isinstance(row[field], int) or isinstance(row[field], bool):
                 raise CorpusChunkLoadError(f"{location}.{field} must be an integer")
@@ -96,6 +100,12 @@ class CorpusChunkLoader:
         for field in ("section_number", "section_title"):
             if row[field] is not None and not isinstance(row[field], str):
                 raise CorpusChunkLoadError(f"{location}.{field} must be a string or null")
+        element_ids = row.get("element_ids", [])
+        if (
+            not isinstance(element_ids, list)
+            or any(not isinstance(value, str) or not value.strip() for value in element_ids)
+        ):
+            raise CorpusChunkLoadError(f"{location}.element_ids must be a list of non-empty strings")
         return DocumentChunk(
             chunk_id=row["chunk_id"],
             standard_number=row["standard_number"],
@@ -105,6 +115,7 @@ class CorpusChunkLoader:
             section_number=row["section_number"],
             section_title=row["section_title"],
             text=row["text"],
+            element_ids=tuple(element_ids),
         )
 
     @staticmethod
