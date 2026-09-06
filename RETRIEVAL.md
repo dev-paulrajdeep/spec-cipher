@@ -49,14 +49,20 @@ incompatible index.
 
 ## Usage
 
-```python
-from retrieval import RetrievalPipeline
+Build the generated application bundle from the repository root:
 
-pipeline = RetrievalPipeline()
-retriever = pipeline.build_and_persist(
-    "output/IS-2645.chunks.jsonl",
-    "output/retrieval-index",
-)
+```powershell
+.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\SP 7_2026.chunks.jsonl" --output retrieval-index
+```
+
+The output directory is `retrieval-index/` and contains all four persistence
+files. It is generated and gitignored; keep the complete directory together
+for Flask startup.
+
+```python
+from retrieval import RetrievalService
+
+retriever = RetrievalService.from_persisted("retrieval-index")
 
 for result in retriever.search("waterproofing compound for concrete", top_k=5):
     print(result.rank, result.similarity_score, result.chunk.standard_number)

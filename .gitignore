@@ -51,6 +51,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Generated retrieval bundle; rebuild from the available corpus.
+retrieval-index/
+
 # Translations
 *.mo
 *.pot

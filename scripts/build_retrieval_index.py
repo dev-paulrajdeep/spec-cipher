@@ -1,0 +1,39 @@
+"""Build the generated retrieval bundle used by the Flask application."""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from retrieval import RetrievalConfig, RetrievalPipeline
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--corpus",
+        type=Path,
+        default=PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.chunks.jsonl",
+        help="retrieval-ready corpus JSON or JSONL artifact",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=PROJECT_ROOT / "retrieval-index",
+        help="directory for the complete generated retrieval bundle",
+    )
+    parser.add_argument("--batch-size", type=int, default=16)
+    args = parser.parse_args()
+
+    config = RetrievalConfig(batch_size=args.batch_size)
+    RetrievalPipeline(config).build_and_persist(args.corpus, args.output)
+    print(f"Built retrieval index at {args.output.resolve()}")
+
+
+if __name__ == "__main__":
+    main()

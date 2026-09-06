@@ -1,8 +1,8 @@
 from flask import Flask, send_from_directory, request, jsonify
 import os
 import logging
-import sqlite3
 from pathlib import Path
+from retrieval import RetrievalService
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -15,8 +15,9 @@ logging.basicConfig(level=logging.DEBUG)
 # Frontend folder is beside the backend folder
 FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
 
-# Database is inside corpus/database/
-DB_FILE = Path(app.root_path).parent / "corpus" / "database" / "standards.db"
+# Generated retrieval bundle; build it before starting Flask.
+RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
+retriever = RetrievalService.from_persisted(RETRIEVAL_INDEX_DIR)
 
 
 # --------------------------------------------------
@@ -60,67 +61,25 @@ def analyse_input():
 
     logging.debug(f"user_input: {user_input}")
 
-    # --------------------------------------------------
-    # Connect to SQLite database
-    # --------------------------------------------------
-
     try:
-        connection = sqlite3.connect(DB_FILE)
-        cursor = connection.cursor()
-
-        # Search the actual chunk text
-        cursor.execute("""
-            SELECT
-                chunk_id,
-                page_start,
-                page_end,
-                section_number,
-                section_title,
-                text
-            FROM chunks
-            WHERE text LIKE ?
-            LIMIT 10
-        """, (f"%{user_input}%",))
-
-        rows = cursor.fetchall()
-
-        connection.close()
-
-    except sqlite3.Error as error:
-        logging.error(f"Database error: {error}")
+        results = retriever.search(user_input, top_k=5)
+    except ValueError as error:
+        return jsonify({
+            "status": "error",
+            "message": str(error),
+        }), 400
+    except Exception as error:
+        logging.error(f"Retrieval error: {error}")
 
         return jsonify({
             "status": "error",
-            "message": "Database error occurred."
+            "message": "Retrieval service unavailable."
         }), 500
-
-
-    # --------------------------------------------------
-    # Convert database rows to JSON
-    # --------------------------------------------------
-
-    recommendations = []
-
-    for row in rows:
-
-        recommendations.append({
-            "chunk_id": row[0],
-            "page_start": row[1],
-            "page_end": row[2],
-            "section_number": row[3],
-            "section_title": row[4],
-            "text": row[5]
-        })
-
-
-    # --------------------------------------------------
-    # Send result back to frontend
-    # --------------------------------------------------
 
     return jsonify({
         "status": "success",
         "user_input": user_input,
-        "recommendations": recommendations,
+        "recommendations": [result.to_dict() for result in results],
         "warnings": []
     })
 

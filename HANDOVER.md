@@ -162,6 +162,59 @@ All four files must stay together. At app startup, load the directory with
 `RetrievalService.from_persisted(index_directory)`. Never construct a FAISS
 index in a request handler.
 
+## Retrieval Index Bundle
+
+The Flask integration path is the repository-root directory
+`retrieval-index/`. It must contain these four files together:
+
+```text
+retrieval-index/
+├── index.faiss
+├── chunk_ids.json
+├── chunks.json
+└── metadata.json
+```
+
+The files are generated and intentionally gitignored. They are not committed
+binary artifacts. The checked-in build entry point is
+`scripts/build_retrieval_index.py`; it uses the existing
+`RetrievalPipeline.build_and_persist()` path and does not create placeholder
+files.
+
+From the repository root, Daksh should run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\SP 7_2026.chunks.jsonl" --output retrieval-index
+```
+
+The corpus argument must point to the actual retrieval-ready `.json` or
+`.jsonl` corpus produced by the corpus pipeline. In this checkout the
+available real corpus is `.tmp/sp7_validation/SP 7_2026.chunks.jsonl`; a full
+bundle was built from its 13,077 actual chunks during verification. The `.tmp/`
+copy is validation workspace state and is not a repository prerequisite. A deployment checkout
+must provide the corpus at `corpus/data/SP 7_2026.chunks.jsonl` or pass its
+actual path with `--corpus`.
+
+The application loads the bundle once at startup through the public interface:
+
+```python
+from retrieval import RetrievalService
+
+retriever = RetrievalService.from_persisted(RETRIEVAL_INDEX_DIR)
+results = retriever.search(user_input, top_k=5)
+payload = [result.to_dict() for result in results]
+```
+
+Required prerequisites are the Python dependencies in `requirements.txt`, the
+`sentence-transformers/all-MiniLM-L6-v2` model, FAISS, and a complete corpus
+artifact. The generated metadata records the required 384-dimensional model,
+normalized `IndexFlatIP` configuration, and corpus fingerprint. A mismatch
+fails during load instead of silently serving incompatible results.
+
+Before running Flask, make sure the retrieval index has been generated at
+`retrieval-index/`. If it does not exist, run
+`.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\SP 7_2026.chunks.jsonl" --output retrieval-index`.
+
 ## Configuration
 
 The verified configuration is:
@@ -234,11 +287,9 @@ SQLite `LIKE` search in `backend/app.py` as the semantic retrieval path.
 
 ## Known Issues
 
-- A full FAISS build/query evaluation across all 13,077 available SP 7:2026
-  chunks was not completed in this finalization session. The 32-text default
-  batch failed to complete on this runtime; batch size 16 was verified on real
-  source chunks and is now the default. Build the complete deployment bundle
-  and evaluate it against a corpus-wide gold set before making quality claims.
+- The generated bundle is an operational handoff artifact, not a relevance
+  benchmark. Evaluate it against a corpus-wide gold set before making quality
+  claims.
 - Running bare `pytest` at repository root fails during collection because
   `corpus/database/test_pdf.py` reads a hard-coded, absent
   `national building construction standards 2026 v1.pdf` at import time. The
