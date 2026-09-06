@@ -47,6 +47,10 @@ class FaissIndex:
             raise ValueError("FAISS vector count does not match explicit chunk-ID mapping")
         if len(chunk_ids) != len(set(chunk_ids)):
             raise ValueError("Chunk-ID mapping contains duplicate values")
+        if native.ntotal:
+            vectors = np.asarray(native.reconstruct_n(0, native.ntotal), dtype=np.float32)
+            instance._validated_vectors(vectors)
+            instance._validate_unit_norms(vectors)
         return instance
 
     @property

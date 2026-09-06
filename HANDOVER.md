@@ -183,9 +183,9 @@ it only after measuring memory headroom on the deployment host.
 ## Validation
 
 - `.venv\\Scripts\\python.exe -m pytest tests --disable-warnings --maxfail=1
-  -p no:cacheprovider`: **34 passed**.
+  -p no:cacheprovider`: **46 passed**.
 - `.venv\\Scripts\\python.exe -m pytest tests/test_retrieval.py
-  --disable-warnings --maxfail=1 -p no:cacheprovider`: **14 passed**.
+  --disable-warnings --maxfail=1 -p no:cacheprovider`: **16 passed**.
 - `python -m compileall -q corpus retrieval intelligence backend tests`:
   passed (no compilation errors).
 - `git diff --check`: passed (no whitespace errors).

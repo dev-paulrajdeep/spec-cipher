@@ -189,6 +189,8 @@ def test_public_service_contract_hides_index_and_serializes_provenance(tmp_path,
 
     results = service.search("waterproofing compound for concrete", top_k=2)
     assert len(results) == 2
+    with pytest.raises(ValueError, match="top_k"):
+        service.search("waterproofing compound for concrete", None)  # type: ignore[arg-type]
     assert not hasattr(service, "index")
     response = results[0].to_dict()
     assert response == {
@@ -258,6 +260,26 @@ def test_load_rejects_missing_or_corrupted_persistence_artifacts(tmp_path, encod
     wrong_metric_index.add(encoder.encode_batch([item.text for item in chunks]))
     faiss.write_index(wrong_metric_index, str(index_directory / "index.faiss"))
     with pytest.raises(IndexCompatibilityError, match="IndexFlatIP"):
+        retrieval.load(index_directory)
+
+
+@pytest.mark.parametrize(
+    ("vector", "message"),
+    [([2.0, 0.0, 0.0], "unit-normalized"), ([float("nan"), 0.0, 0.0], "finite")],
+)
+def test_load_rejects_invalid_persisted_vectors(tmp_path, encoder, chunks, vector, message) -> None:
+    artifact = tmp_path / "chunks.jsonl"
+    artifact.write_text("\n".join(json.dumps(chunk_row(item)) for item in chunks), encoding="utf-8")
+    index_directory = tmp_path / "index"
+    retrieval = pipeline(encoder)
+    retrieval.build_and_persist(artifact, index_directory)
+
+    faiss = FaissIndex._import_faiss()
+    invalid_index = faiss.IndexFlatIP(encoder.dimension)
+    invalid_index.add(np.asarray([vector] * len(chunks), dtype=np.float32))
+    faiss.write_index(invalid_index, str(index_directory / "index.faiss"))
+
+    with pytest.raises(IndexCompatibilityError, match=message):
         retrieval.load(index_directory)
 
 

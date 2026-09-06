@@ -49,6 +49,10 @@ class RetrievalService:
 
     def search(self, query: str, top_k: int = 5) -> tuple[RetrievalResult, ...]:
         """Return up to ``top_k`` provenance-preserving semantic candidates."""
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("query must be a non-empty string")
+        if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k < 1:
+            raise ValueError("top_k must be positive")
         if self._retriever is None:
             raise RetrievalUnavailableError(
                 "Retrieval service is not loaded; call load() or from_persisted() first"
