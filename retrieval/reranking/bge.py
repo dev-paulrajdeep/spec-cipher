@@ -118,5 +118,5 @@ class BGEReranker:
                 model_kwargs=model_kwargs or None,
             )
             if self._max_seq_length is not None:
-                self._model.max_length = self._max_seq_length
+                self._model.max_seq_length = self._max_seq_length
         return self._model
