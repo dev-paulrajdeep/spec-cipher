@@ -18,6 +18,7 @@ for row in rows:
     print("Chunk:", row[1])
     print("Pages:", row[2], "-", row[3])
     print("Section:", row[4])
-    print("Text:", row[5][:500])
+    print("Text:", (row[5] or "")[:500][:500])
 
 connection.close()
+

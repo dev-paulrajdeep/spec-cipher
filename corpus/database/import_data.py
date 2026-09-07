@@ -17,6 +17,8 @@ def import_data():
                 continue
 
             chunk = json.loads(line)
+            print(chunk)
+            break
 
             cursor.execute("""
                 INSERT OR IGNORE INTO chunks (
