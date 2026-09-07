@@ -206,10 +206,11 @@ payload = [result.to_dict() for result in results]
 ```
 
 Required prerequisites are the Python dependencies in `requirements.txt`, the
-`sentence-transformers/all-MiniLM-L6-v2` model, FAISS, and a complete corpus
-artifact. The generated metadata records the required 384-dimensional model,
-normalized `IndexFlatIP` configuration, and corpus fingerprint. A mismatch
-fails during load instead of silently serving incompatible results.
+`BAAI/bge-m3` model, FAISS, and a complete corpus artifact. The generated
+metadata records the backend, model revision, reported dimension (normally
+1024 for BGE-M3), normalized `IndexFlatIP` configuration, and corpus
+fingerprint. A mismatch fails during load instead of silently serving
+incompatible results.
 
 Before running Flask, make sure the retrieval index has been generated at
 `retrieval-index/`. If it does not exist, run
@@ -221,17 +222,19 @@ The verified configuration is:
 
 | Setting | Value |
 | --- | --- |
-| Embedding model | `sentence-transformers/all-MiniLM-L6-v2` |
-| Embedding dimension | 384 (verified from the loaded model) |
+| Embedding model | `BAAI/bge-m3` |
+| Embedding dimension | 1024 when reported by the loaded model |
 | Index | exact FAISS `IndexFlatIP` |
 | Score | inner product of unit-normalized vectors = cosine similarity |
 | Default query limit | 5 |
 | Default build batch size | 16 |
 | Corpus inputs | canonical corpus `.json` or chunk `.jsonl` |
 
-The default batch size was reduced from 32 to 16 after the 32-text batch did
-not complete on the repository's large SP 7 chunks in this runtime. Increase
-it only after measuring memory headroom on the deployment host.
+The production encoder is `BAAI/bge-m3`, normally used with CUDA on the RTX
+5060. Batch size defaults to 16 to keep VRAM use conservative. CPU use is
+explicit (`embedding_device="cpu"`) or requires
+`allow_cpu_fallback=True`; importing retrieval remains lazy and does not
+allocate VRAM.
 
 ## Validation
 

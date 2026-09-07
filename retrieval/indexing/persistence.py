@@ -20,7 +20,9 @@ class IndexCompatibilityError(RuntimeError):
 class IndexMetadata:
     schema_version: str
     index_type: str
+    embedding_backend: str
     embedding_model: str
+    embedding_model_version: str
     embedding_dimension: int
     normalize_embeddings: bool
     corpus_schema_version: str | None
@@ -29,10 +31,14 @@ class IndexMetadata:
     created_at_utc: str
 
     def __post_init__(self) -> None:
-        if self.schema_version != "1.0" or self.index_type != "IndexFlatIP":
+        if self.schema_version != "1.1" or self.index_type != "IndexFlatIP":
             raise ValueError("Unsupported persisted index format")
+        if not isinstance(self.embedding_backend, str) or not self.embedding_backend.strip():
+            raise ValueError("Persisted embedding backend is invalid")
         if not isinstance(self.embedding_model, str) or not self.embedding_model.strip():
             raise ValueError("Persisted embedding model is invalid")
+        if not isinstance(self.embedding_model_version, str) or not self.embedding_model_version.strip():
+            raise ValueError("Persisted embedding model version is invalid")
         if (
             not isinstance(self.embedding_dimension, int)
             or isinstance(self.embedding_dimension, bool)
@@ -58,16 +64,20 @@ class IndexMetadata:
     def create(
         cls,
         *,
+        embedding_backend: str,
         embedding_model: str,
+        embedding_model_version: str,
         embedding_dimension: int,
         normalize_embeddings: bool,
         corpus_schema_version: str | None,
         chunks: tuple[DocumentChunk, ...],
     ) -> "IndexMetadata":
         return cls(
-            schema_version="1.0",
+            schema_version="1.1",
             index_type="IndexFlatIP",
+            embedding_backend=embedding_backend,
             embedding_model=embedding_model,
+            embedding_model_version=embedding_model_version,
             embedding_dimension=embedding_dimension,
             normalize_embeddings=normalize_embeddings,
             corpus_schema_version=corpus_schema_version,
@@ -119,7 +129,9 @@ class IndexPersistence:
         self,
         directory: str | Path,
         *,
+        expected_embedding_backend: str = "sentence-transformers",
         expected_embedding_model: str,
+        expected_embedding_model_version: str = "main",
         expected_dimension: int,
         expected_normalize_embeddings: bool,
     ) -> PersistedIndex:
@@ -129,7 +141,10 @@ class IndexPersistence:
         if missing:
             raise FileNotFoundError(f"Persisted index is incomplete; missing: {', '.join(missing)}")
         metadata = self._metadata_from_dict(self._read_json(source / self.METADATA_FILE))
-        self._validate_compatibility(metadata, expected_embedding_model, expected_dimension, expected_normalize_embeddings)
+        self._validate_compatibility(
+            metadata, expected_embedding_backend, expected_embedding_model,
+            expected_embedding_model_version, expected_dimension, expected_normalize_embeddings,
+        )
         chunk_ids = self._read_json(source / self.MAPPING_FILE)
         rows = self._read_json(source / self.CHUNKS_FILE)
         if not isinstance(chunk_ids, list) or not all(isinstance(item, str) for item in chunk_ids):
@@ -235,11 +250,22 @@ class IndexPersistence:
         return tuple(chunks)
 
     @staticmethod
-    def _validate_compatibility(metadata: IndexMetadata, model: str, dimension: int, normalized: bool) -> None:
-        if metadata.schema_version != "1.0" or metadata.index_type != "IndexFlatIP":
+    def _validate_compatibility(
+        metadata: IndexMetadata,
+        backend: str,
+        model: str,
+        model_version: str,
+        dimension: int,
+        normalized: bool,
+    ) -> None:
+        if metadata.schema_version != "1.1" or metadata.index_type != "IndexFlatIP":
             raise IndexCompatibilityError("Unsupported persisted index format")
+        if metadata.embedding_backend != backend:
+            raise IndexCompatibilityError("Persisted index was built with a different embedding backend")
         if metadata.embedding_model != model:
             raise IndexCompatibilityError("Persisted index was built with a different embedding model")
+        if metadata.embedding_model_version != model_version:
+            raise IndexCompatibilityError("Persisted index was built with a different embedding model version")
         if metadata.embedding_dimension != dimension:
             raise IndexCompatibilityError("Persisted index has an incompatible embedding dimension")
         if metadata.normalize_embeddings != normalized:

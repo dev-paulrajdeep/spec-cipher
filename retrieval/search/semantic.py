@@ -11,6 +11,7 @@ from corpus.models import DocumentChunk
 from retrieval.embeddings import EmbeddingEncoder
 from retrieval.indexing import FaissIndex
 from retrieval.models import RetrievalResult, StandardCandidate, group_results_by_standard
+from retrieval.reranking import CandidateReranker
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class SemanticRetriever:
     """Semantic Top-K candidate generator; scores are not recommendations."""
 
-    def __init__(self, encoder: EmbeddingEncoder, index: FaissIndex, chunks: tuple[DocumentChunk, ...], default_top_k: int = 5) -> None:
+    def __init__(self, encoder: EmbeddingEncoder, index: FaissIndex, chunks: tuple[DocumentChunk, ...], default_top_k: int = 5, reranker: CandidateReranker | None = None, reranker_candidate_k: int | None = None) -> None:
         if default_top_k < 1:
             raise ValueError("default_top_k must be positive")
         if index.dimension != encoder.dimension:
@@ -31,6 +32,8 @@ class SemanticRetriever:
         self._index = index
         self._chunks = {chunk.chunk_id: chunk for chunk in chunks}
         self._default_top_k = default_top_k
+        self._reranker = reranker
+        self._reranker_candidate_k = reranker_candidate_k
 
     def search(self, query: str, top_k: int | None = None) -> tuple[RetrievalResult, ...]:
         """Return at most Top-K chunks ordered by decreasing cosine similarity."""
@@ -43,11 +46,16 @@ class SemanticRetriever:
         vector = np.asarray(self._encoder.encode_text(query), dtype=np.float32)
         if vector.ndim != 1 or vector.shape[0] != self._index.dimension:
             raise ValueError("Query encoder returned an incompatible embedding dimension")
-        hits = self._index.search(vector.reshape(1, -1), requested)[0]
+        candidate_k = requested
+        if self._reranker is not None and self._reranker_candidate_k is not None:
+            candidate_k = max(requested, self._reranker_candidate_k)
+        hits = self._index.search(vector.reshape(1, -1), candidate_k)[0]
         results = tuple(
             RetrievalResult(chunk=self._chunks[hit.chunk_id], similarity_score=hit.similarity_score, rank=rank)
             for rank, hit in enumerate(hits, start=1)
         )
+        if self._reranker is not None:
+            results = self._reranker.rerank(query, tuple(results), top_n=requested)
         logger.info("Semantic query completed: candidates=%d duration_ms=%.2f", len(results), (perf_counter() - started) * 1000)
         return results
 

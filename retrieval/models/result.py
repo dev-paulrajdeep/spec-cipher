@@ -10,15 +10,21 @@ from corpus.models import DocumentChunk
 
 @dataclass(frozen=True)
 class RetrievalResult:
-    """One retrieved chunk and its cosine similarity to the query.
+    """One retrieved chunk with semantic and optional second-stage scores.
 
-    ``similarity_score`` is a semantic cosine similarity when the configured
-    encoder normalizes embeddings. It is not applicability or confidence.
+    ``similarity_score`` is the first-stage BGE-M3/FAISS cosine similarity.
+    ``reranker_score`` is optional and never replaces that semantic score.
     """
 
     chunk: DocumentChunk
     similarity_score: float
     rank: int
+    reranker_score: float | None = None
+
+    @property
+    def semantic_score(self) -> float:
+        """Explicit name for the original first-stage semantic score."""
+        return self.similarity_score
 
     def to_dict(self) -> dict[str, Any]:
         """Return the stable JSON-ready retrieval contract for serving code.
@@ -27,7 +33,7 @@ class RetrievalResult:
         between normalized query and chunk embeddings, not an applicability or
         confidence score.
         """
-        return {
+        result = {
             "standard_number": self.chunk.standard_number,
             "title": None,
             "section_number": self.chunk.section_number,
@@ -43,3 +49,7 @@ class RetrievalResult:
                 "element_ids": list(self.chunk.element_ids),
             },
         }
+        if self.reranker_score is not None:
+            result["semantic_score"] = self.semantic_score
+            result["reranker_score"] = self.reranker_score
+        return result

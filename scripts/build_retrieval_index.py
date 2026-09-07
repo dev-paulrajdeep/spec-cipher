@@ -28,9 +28,15 @@ def main() -> None:
         help="directory for the complete generated retrieval bundle",
     )
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
+    parser.add_argument("--allow-cpu-fallback", action="store_true")
     args = parser.parse_args()
 
-    config = RetrievalConfig(batch_size=args.batch_size)
+    config = RetrievalConfig(
+        batch_size=args.batch_size,
+        embedding_device=args.device,
+        allow_cpu_fallback=args.allow_cpu_fallback,
+    )
     RetrievalPipeline(config).build_and_persist(args.corpus, args.output)
     print(f"Built retrieval index at {args.output.resolve()}")
 
