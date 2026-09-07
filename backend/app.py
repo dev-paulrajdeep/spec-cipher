@@ -1,8 +1,12 @@
 from flask import Flask, send_from_directory, request, jsonify
 import os
+import sys
 import logging
 from pathlib import Path
-from retrieval import RetrievalService
+# CHANGING ROOT PATH THAT PYTHON USES
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+from retrieval.service import RetrievalService, RetrievalUnavailableError
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -14,6 +18,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Frontend folder is beside the backend folder
 FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
+
+# 
+
 
 # Generated retrieval bundle; build it before starting Flask.
 RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
