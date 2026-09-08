@@ -30,6 +30,7 @@ class IntelligenceConfig:
     cross_encoder_model: str | None = None
     cross_encoder_batch_size: int = 16
     final_rerank_weight: float = 0.35
+    minimum_applicability: float = 0.20
     applicability_weights: ApplicabilityWeights = ApplicabilityWeights()
     evidence_limit: int = 3
     relationship_depth: int = 1
@@ -44,3 +45,5 @@ class IntelligenceConfig:
             raise ValueError("Batch size, evidence limit, and relationship depth must be valid")
         if not 0 <= self.final_rerank_weight <= 1:
             raise ValueError("final_rerank_weight must be between zero and one")
+        if not 0 <= self.minimum_applicability <= 1:
+            raise ValueError("minimum_applicability must be between zero and one")

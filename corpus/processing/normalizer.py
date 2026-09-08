@@ -7,7 +7,7 @@ import unicodedata
 
 
 _STANDARD_RE = re.compile(
-    r"\bIS\s*(?P<number>\d{1,5})\s*(?P<part>\(\s*(?:Part|Section)\s*\d+\s*\))?\s*(?P<year>:\s*\d{4})?",
+    r"\b(?P<prefix>IS|SP)\s*(?P<number>\d{1,5})\s*(?P<part>\(\s*(?:Part|Section)\s*\d+\s*\))?\s*(?P<year>[:_]\s*\d{4})?",
     re.IGNORECASE,
 )
 
@@ -18,16 +18,19 @@ def normalize_text(value: str) -> str:
 
 
 def normalize_standard_number(value: str) -> str | None:
-    """Return a stable IS identifier or ``None`` when ``value`` is not an IS reference."""
+    """Return a stable IS or SP identifier or ``None`` when ``value`` is not an IS/SP reference."""
     match = _STANDARD_RE.search(normalize_text(value))
     if not match:
         return None
+    prefix = match.group("prefix").upper()
     part = match.group("part")
     year = match.group("year")
-    result = f"IS {match.group('number')}"
+    result = f"{prefix} {match.group('number')}"
     if part:
         inner = re.sub(r"\s+", " ", part.strip()[1:-1]).title()
         result += f" ({inner})"
     if year:
-        result += ":" + year.split(":", 1)[1].strip()
+        year_val = re.sub(r"^[:_]\s*", "", year).strip()
+        result += f":{year_val}"
     return result
+

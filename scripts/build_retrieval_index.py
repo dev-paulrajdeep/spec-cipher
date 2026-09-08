@@ -18,8 +18,8 @@ def main() -> None:
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.chunks.jsonl",
-        help="retrieval-ready corpus JSON or JSONL artifact",
+        default=PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.json",
+        help="canonical corpus JSON or retrieval-ready JSONL artifact",
     )
     parser.add_argument(
         "--output",
@@ -28,12 +28,14 @@ def main() -> None:
         help="directory for the complete generated retrieval bundle",
     )
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--max-seq-length", type=int, default=256)
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     parser.add_argument("--allow-cpu-fallback", action="store_true")
     args = parser.parse_args()
 
     config = RetrievalConfig(
         batch_size=args.batch_size,
+        max_seq_length=args.max_seq_length,
         embedding_device=args.device,
         allow_cpu_fallback=args.allow_cpu_fallback,
     )

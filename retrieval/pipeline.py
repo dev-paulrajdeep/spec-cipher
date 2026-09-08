@@ -76,6 +76,7 @@ class RetrievalPipeline:
         return SemanticRetriever(
             self.encoder, index, chunks, self.config.top_k,
             self.reranker, self.config.reranker_candidate_k,
+            self.config.sequential_model_lifecycle,
         )
 
     def build_and_persist(self, artifact_path: str | Path, directory: str | Path) -> SemanticRetriever:
@@ -112,6 +113,7 @@ class RetrievalPipeline:
         return SemanticRetriever(
             self.encoder, bundle.index, bundle.chunks, self.config.top_k,
             self.reranker, self.config.reranker_candidate_k,
+            self.config.sequential_model_lifecycle,
         )
 
     def _configured_reranker(self) -> CandidateReranker | None:

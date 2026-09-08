@@ -8,6 +8,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 from retrieval.service import RetrievalService, RetrievalUnavailableError
 from retrieval.indexing import IndexCompatibilityError 
+from retrieval.config import RetrievalConfig
+from intelligence.pipeline import IntelligenceEngine
+from intelligence.relationships import CorpusKnowledgeBase
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -20,12 +23,25 @@ logging.basicConfig(level=logging.DEBUG)
 # Frontend folder is beside the backend folder
 FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
 
-# 
-
-
 # Generated retrieval bundle; build it before starting Flask.
 RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
-retriever = RetrievalService.from_persisted(RETRIEVAL_INDEX_DIR)
+retriever = RetrievalService.from_persisted(
+    RETRIEVAL_INDEX_DIR,
+    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=True),
+)
+
+CANONICAL_CORPUS_PATHS = (
+    PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.json",
+    PROJECT_ROOT / ".tmp" / "sp7_validation" / "SP 7_2026.json",
+)
+canonical_corpus_file = next((p for p in CANONICAL_CORPUS_PATHS if p.exists()), None)
+knowledge_base = (
+    CorpusKnowledgeBase.from_canonical_json((canonical_corpus_file,))
+    if canonical_corpus_file
+    else CorpusKnowledgeBase()
+)
+intelligence = IntelligenceEngine(knowledge_base=knowledge_base)
+
 
 
 # --------------------------------------------------
@@ -71,6 +87,7 @@ def analyse_input():
 
     try:
         results = retriever.search(user_input, top_k=5)
+        run = intelligence.recommend(user_input, results)
 
     # handling the 4 errors specifically asked     
     except ValueError as error:
@@ -101,6 +118,13 @@ def analyse_input():
         "message": "Retrieval service unavailable."
         }), 503
 
+    except Exception as error:
+        logging.exception("Recommendation pipeline failed")
+        return jsonify({
+            "status": "error",
+            "message": "Recommendation service unavailable.",
+        }), 503
+
     # getting rid of all exception as said 4 errors are handled above
     # except Exception as error:
     #     logging.error(f"Retrieval error: {error}")
@@ -113,8 +137,10 @@ def analyse_input():
     return jsonify({
         "status": "success",
         "user_input": user_input,
-        "recommendations": [result.to_dict() for result in results],
-        "warnings": []
+        "recommendations": [recommendation.to_dict() for recommendation in run.recommendations],
+        "warnings": [] if run.recommendations else [
+            "No suitable standard was found for this requirement."
+        ],
     })
 
     # what recommendations will have as fields(saptak)[for frontend guys]:

@@ -8,7 +8,10 @@ from corpus.processing.normalizer import normalize_standard_number
 from intelligence.models import ConstraintReason
 
 
-_REFERENCE_RE = re.compile(r"\bIS\s*\d{1,5}(?:\s*\(\s*(?:Part|Section)\s*\d+\s*\))?(?:\s*:\s*\d{4})?", re.I)
+_REFERENCE_RE = re.compile(
+    r"\b(?:IS|SP)\s*\d{1,5}(?:\s*\(\s*(?:Part|Section)\s*\d+\s*\))?(?:\s*[:_]\s*\d{4})?",
+    re.I,
+)
 
 
 def requested_standard_numbers(requirement: str) -> tuple[str, ...]:

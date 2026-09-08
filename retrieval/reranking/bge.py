@@ -120,3 +120,16 @@ class BGEReranker:
             if self._max_seq_length is not None:
                 self._model.max_seq_length = self._max_seq_length
         return self._model
+
+    def release(self) -> None:
+        """Release GPU/memory resources held by the loaded model."""
+        if self._model is not None:
+            self._model = None
+            import gc
+            gc.collect()
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except ImportError:
+                pass

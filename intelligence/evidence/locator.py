@@ -21,9 +21,11 @@ class EvidenceLocator:
             chunk = item.candidate.chunk
             if chunk.chunk_id in seen:
                 continue
+            if not chunk.standard_number:
+                continue
             seen.add(chunk.chunk_id)
             evidence.append(EvidenceItem(
-                standard_number=chunk.standard_number or "<unknown standard>",
+                standard_number=chunk.standard_number,
                 chunk_id=chunk.chunk_id,
                 source_file=chunk.source_file,
                 page_start=chunk.page_start,

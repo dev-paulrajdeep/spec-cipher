@@ -126,3 +126,16 @@ def test_empty_candidates_and_reranker_failure_are_handled(knowledge) -> None:
     )
     assert run.recommendations
     assert "fallback" in run.recommendations[0].warnings[0]
+
+
+def test_engine_rejects_candidates_with_zero_applicability(knowledge) -> None:
+    candidate = result("unrelated", "IS 2645:2003", "unrelated source wording", 1)
+
+    run = IntelligenceEngine(knowledge_base=knowledge).recommend(
+        "lunar geology and medieval music", (candidate,)
+    )
+
+    assert run.recommendations == ()
+    assert len(run.candidates) == 1
+    assert run.candidates[0].applicability is not None
+    assert run.candidates[0].applicability.overall == 0.0

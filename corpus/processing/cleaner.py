@@ -14,7 +14,7 @@ _PAGE_NUMBER_RE = re.compile(r"^\s*(?:page\s*)?\d{1,4}\s*(?:of\s*\d{1,4})?\s*$",
 _HEADING_RE = re.compile(
     r"^\s*(?:\d+(?:\.\d+)*\.?\s+\D|(?:Annex\s+[A-Z]|Appendix)\b)", re.I
 )
-_STANDARD_LINE_RE = re.compile(r"^\s*IS\s*\d{1,5}\b", re.I)
+_STANDARD_LINE_RE = re.compile(r"^\s*(?:IS|SP)\s*\d{1,5}\b", re.I)
 _CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 

@@ -127,11 +127,19 @@ class IntelligenceEngine:
         return IntelligenceRun(recommendations, tuple(scored), metrics)
 
     def _recommendations(self, candidates: tuple[ScoredCandidate, ...], metrics: PipelineMetrics) -> tuple[Recommendation, ...]:
-        eligible = [item for item in candidates if item.applicability and item.rerank_result and item.final_score is not None]
+        eligible = [
+            item for item in candidates
+            if item.candidate.chunk.standard_number
+            and item.applicability
+            and item.applicability.overall >= self.config.minimum_applicability
+            and item.rerank_result
+            and item.final_score is not None
+        ]
         groups: OrderedDict[str, list[ScoredCandidate]] = OrderedDict()
         for item in eligible:
-            standard = item.candidate.chunk.standard_number or "<unknown standard>"
-            groups.setdefault(standard, []).append(item)
+            standard = item.candidate.chunk.standard_number
+            if standard:
+                groups.setdefault(standard, []).append(item)
         ranked_groups = sorted(
             groups.items(),
             key=lambda entry: (-max(item.final_score or 0.0 for item in entry[1]), entry[0]),

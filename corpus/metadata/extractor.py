@@ -12,6 +12,10 @@ from .parser import StandardNumberParser
 _EDITION_RE = re.compile(r"\b((?:first|second|third|fourth|\d+(?:st|nd|rd|th))\s+edition)\b", re.I)
 _REVISION_RE = re.compile(r"\b((?:first|second|third|fourth|\d+(?:st|nd|rd|th))\s+revision|revision\s*\d+)\b", re.I)
 _STATUS_RE = re.compile(r"\b(reaffirmed|withdrawn|current|superseded|cancelled)\b", re.I)
+_KNOWN_TITLE_RE = re.compile(
+    r"\b(NATIONAL BUILDING (?:CONSTRUCTION )?STANDARDS(?:\s+\d{4})?(?:\s+VOLUME\s+\d+)?|NATIONAL BUILDING CODE OF INDIA(?:\s+\d{4})?)\b",
+    re.I,
+)
 
 
 class MetadataExtractor:
@@ -25,7 +29,8 @@ class MetadataExtractor:
         standard_number = self._parser.parse(leading_text)
         title = self._title_from_leading_pages(pages, standard_number)
         edition = self._first_group(_EDITION_RE, leading_text)
-        revision = self._first_group(_REVISION_RE, leading_text)
+        revisions = _REVISION_RE.findall(leading_text)
+        revision = revisions[-1] if revisions else None
         status = self._first_group(_STATUS_RE, leading_text)
         return StandardMetadata(
             standard_number=standard_number,
@@ -46,7 +51,7 @@ class MetadataExtractor:
     @staticmethod
     def _title_from_leading_pages(pages: tuple[CorpusPage, ...], standard_number: str | None) -> str | None:
         """Select an obvious title line near the identifier, otherwise retain uncertainty."""
-        for page in pages[:2]:
+        for page in pages[:3]:
             lines = [line.strip() for line in page.cleaned_text.splitlines() if line.strip()]
             for index, line in enumerate(lines):
                 if standard_number and normalize_standard_number(line) == standard_number:
@@ -54,8 +59,15 @@ class MetadataExtractor:
                         if (
                             len(following) >= 4
                             and len(following) <= 220
-                            and not following.lower().startswith(("is ", "bureau of", "copyright"))
-                            and not re.match(r"^(?:\d+(?:\.\d+)*\.?\s+|annex\b|appendix\b)", following, re.I)
+                            and not following.lower().startswith(("is ", "sp ", "bureau of", "copyright"))
+                            and not re.match(r"^(?:\d+(?:\.\d+)*\.?\s+|annex\b|appendix\b|first\b|second\b|third\b|fourth\b)", following, re.I)
                         ):
                             return following
+        for page in pages[:3]:
+            for line in page.cleaned_text.splitlines():
+                clean_line = line.strip()
+                match = _KNOWN_TITLE_RE.search(clean_line)
+                if match:
+                    return match.group(1).title()
         return None
+

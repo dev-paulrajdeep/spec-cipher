@@ -9,7 +9,7 @@ from corpus.processing.normalizer import normalize_standard_number
 
 
 _REFERENCE_RE = re.compile(
-    r"\bIS\s*\d{1,5}(?:\s*\(\s*(?:Part|Section)\s*\d+\s*\))?(?:\s*:\s*\d{4})?",
+    r"\b(?:IS|SP)\s*\d{1,5}(?:\s*\(\s*(?:Part|Section)\s*\d+\s*\))?(?:\s*[:_]\s*\d{4})?",
     re.I,
 )
 _RELATION_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (

@@ -19,7 +19,16 @@ logger = logging.getLogger(__name__)
 class SemanticRetriever:
     """Semantic Top-K candidate generator; scores are not recommendations."""
 
-    def __init__(self, encoder: EmbeddingEncoder, index: FaissIndex, chunks: tuple[DocumentChunk, ...], default_top_k: int = 5, reranker: CandidateReranker | None = None, reranker_candidate_k: int | None = None) -> None:
+    def __init__(
+        self,
+        encoder: EmbeddingEncoder,
+        index: FaissIndex,
+        chunks: tuple[DocumentChunk, ...],
+        default_top_k: int = 5,
+        reranker: CandidateReranker | None = None,
+        reranker_candidate_k: int | None = None,
+        sequential_model_lifecycle: bool = True,
+    ) -> None:
         if default_top_k < 1:
             raise ValueError("default_top_k must be positive")
         if index.dimension != encoder.dimension:
@@ -34,6 +43,7 @@ class SemanticRetriever:
         self._default_top_k = default_top_k
         self._reranker = reranker
         self._reranker_candidate_k = reranker_candidate_k
+        self._sequential_model_lifecycle = bool(sequential_model_lifecycle)
 
     def search(self, query: str, top_k: int | None = None) -> tuple[RetrievalResult, ...]:
         """Return at most Top-K chunks ordered by decreasing cosine similarity."""
@@ -55,9 +65,14 @@ class SemanticRetriever:
             for rank, hit in enumerate(hits, start=1)
         )
         if self._reranker is not None:
+            if self._sequential_model_lifecycle and hasattr(self._encoder, "release"):
+                self._encoder.release()
             results = self._reranker.rerank(query, tuple(results), top_n=requested)
+            if self._sequential_model_lifecycle and hasattr(self._reranker, "release"):
+                self._reranker.release()
         logger.info("Semantic query completed: candidates=%d duration_ms=%.2f", len(results), (perf_counter() - started) * 1000)
         return results
+
 
     def search_candidates(self, query: str, top_k: int | None = None) -> tuple[StandardCandidate, ...]:
         """Provide a standard grouping while retaining every returned chunk as evidence."""

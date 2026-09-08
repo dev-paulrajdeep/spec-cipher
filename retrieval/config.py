@@ -28,6 +28,7 @@ class RetrievalConfig:
     reranker_max_seq_length: int | None = None
     reranker_candidate_k: int | None = None
     reranker_use_fp16: bool = True
+    sequential_model_lifecycle: bool = True
     top_k: int = 5
     index_type: str = "IndexFlatIP"
     corpus_path: Path | None = None
@@ -90,3 +91,6 @@ class RetrievalConfig:
             or self.reranker_candidate_k < 1
         ):
             raise ValueError("reranker_candidate_k must be positive when provided")
+        if not isinstance(self.sequential_model_lifecycle, bool):
+            raise ValueError("sequential_model_lifecycle must be a boolean")
+
