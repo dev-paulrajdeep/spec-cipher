@@ -67,9 +67,11 @@ class SemanticRetriever:
         if self._reranker is not None:
             if self._sequential_model_lifecycle and hasattr(self._encoder, "release"):
                 self._encoder.release()
-            results = self._reranker.rerank(query, tuple(results), top_n=requested)
-            if self._sequential_model_lifecycle and hasattr(self._reranker, "release"):
-                self._reranker.release()
+            try:
+                results = self._reranker.rerank(query, tuple(results), top_n=requested)
+            finally:
+                if self._sequential_model_lifecycle and hasattr(self._reranker, "release"):
+                    self._reranker.release()
         logger.info("Semantic query completed: candidates=%d duration_ms=%.2f", len(results), (perf_counter() - started) * 1000)
         return results
 

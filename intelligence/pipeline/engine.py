@@ -176,6 +176,8 @@ class IntelligenceEngine:
                 applicability=primary.applicability,
                 evidence=evidence,
                 related_standards=related_by_standard[standard],
+                status=context.metadata.status if context.metadata else None,
+                version=(context.metadata.revision or context.metadata.edition) if context.metadata else None,
                 warnings=(*primary.warnings, *relationship_warnings[standard]),
             ))
         metrics.record("evidence", evidence_started, sum(len(item.evidence) for item in output))

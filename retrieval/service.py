@@ -8,6 +8,7 @@ of :class:`retrieval.pipeline.RetrievalPipeline`.
 from __future__ import annotations
 
 from pathlib import Path
+from threading import RLock
 
 from .config import RetrievalConfig
 from .models import RetrievalResult
@@ -30,6 +31,7 @@ class RetrievalService:
     def __init__(self, _pipeline: RetrievalPipeline | None = None) -> None:
         self._pipeline = _pipeline or RetrievalPipeline()
         self._retriever: SemanticRetriever | None = None
+        self._search_lock = RLock()
 
     @classmethod
     def from_persisted(
@@ -53,8 +55,9 @@ class RetrievalService:
             raise ValueError("query must be a non-empty string")
         if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k < 1:
             raise ValueError("top_k must be positive")
-        if self._retriever is None:
-            raise RetrievalUnavailableError(
-                "Retrieval service is not loaded; call load() or from_persisted() first"
-            )
-        return self._retriever.search(query, top_k=top_k)
+        with self._search_lock:
+            if self._retriever is None:
+                raise RetrievalUnavailableError(
+                    "Retrieval service is not loaded; call load() or from_persisted() first"
+                )
+            return self._retriever.search(query, top_k=top_k)
