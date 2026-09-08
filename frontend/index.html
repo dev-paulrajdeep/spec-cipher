@@ -1,593 +1,636 @@
 <!DOCTYPE html>
 <html lang="en">
- <head>
-  <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>
-   SpecCipher &mdash; Find Indian Standards for Procurement
-  </title>
-  <meta content="Describe a procurement requirement in plain language to identify potentially applicable Indian Standards. AI-assisted, requires verification." name="description"/>
-  <link href="css/style.css" rel="stylesheet"/>
-  <link href="css/responsive.css" rel="stylesheet"/>
- </head>
- <body>
-  <header class="app-header">
-   <div class="header-container">
-    <a class="brand-logo" data-view-target="new-analysis" href="#" role="button">
-     <div aria-hidden="true" class="brand-glyph">
-      SC
-     </div>
-     SpecCipher
-    </a>
-    <nav aria-label="Utility navigation" class="header-nav">
-     <button class="nav-btn" data-view-target="search" id="nav-search">
-      Standards
-     </button>
-     <button class="nav-btn" data-view-target="about" id="nav-about">
-      About
-     </button>
-    </nav>
-   </div>
-  </header>
-  <main class="main-wrapper" id="main-content">
-   <section aria-label="Analyze a specification" class="view-section active" id="view-new-analysis">
-    <form id="spec-analysis-form" novalidate="">
-     <div class="tool-screen">
-      <h1 class="tool-heading">
-       Find potentially applicable Indian Standards
-       <br/>
-       for your procurement requirement.
-      </h1>
-      <p class="tool-subtext">
-       Describe your complete procurement requirement in plain language.
-      </p>
-      <textarea aria-label="Procurement specification" class="spec-textarea" id="spec-raw-text" placeholder="e.g. I need 100 pumps of 15 kW for agricultural use, operating at 415V, 50Hz..." rows="8"></textarea>
-      <button class="tool-analyze-btn" id="btn-submit-analysis" type="submit">
-       Analyze
-      </button>
-      <p class="tool-disclaimer">
-       AI-assisted recommendations should be verified against
-            the current official BIS publication.
-      </p>
-      <div class="tool-clear-link">
-       <button class="btn-text-link" id="btn-clear-spec" type="button">
-        Clear form
-       </button>
-      </div>
-     </div>
-    </form>
-   </section>
-   <section aria-label="Analysis results" class="view-section" id="view-results">
-    <div class="results-back-nav">
-     <div class="results-back-nav-left">
-      <button class="btn-text-link" data-view-target="new-analysis">
-       &larr; New search
-      </button>
-     </div>
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>SpecCipher — Find Indian Standards for Procurement</title>
+    <meta content="Describe a procurement requirement in plain language to identify potentially relevant Indian Standards. AI-assisted, requires verification." name="description"/>
+    <link href="css/style.css" rel="stylesheet"/>
+    <link href="css/responsive.css" rel="stylesheet"/>
+</head>
+
+<body>
+
+<header class="app-header">
+    <div class="header-container">
+        <a class="brand-logo" data-view-target="new-analysis" href="#" role="button">
+            <div aria-hidden="true" class="brand-glyph">
+                SC
+            </div>
+            SpecCipher
+        </a>
+
+        <nav aria-label="Utility navigation" class="header-nav">
+            <button class="nav-btn" data-view-target="about" id="nav-about">
+                About
+            </button>
+        </nav>
     </div>
-    <div class="empty-state-box" id="results-empty-state">
-     <svg aria-hidden="true" class="empty-state-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 24 24">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z">
-      </path>
-      <polyline points="14 2 14 8 20 8">
-      </polyline>
-      <line x1="16" x2="8" y1="13" y2="13">
-      </line>
-      <line x1="16" x2="8" y1="17" y2="17">
-      </line>
-     </svg>
-     <div class="empty-state-title">
-      No analysis yet
-     </div>
-     <div class="empty-state-desc">
-      Submit a procurement specification to begin.
-          Results will appear here.
-     </div>
-     <div class="empty-state-actions">
-      <button class="btn btn-primary" data-view-target="new-analysis">
-       Analyze a specification
-      </button>
-     </div>
-    </div>
-    <div class="results-container" id="results-content-area" style="display:none;">
-     <div class="results-summary-banner">
-      <div>
-       <div class="query-meta-title" id="result-query-timestamp">
-        Analysis
-       </div>
-       <div class="query-text-preview" id="result-query-preview">
-        Procurement requirement
-       </div>
-      </div>
-      <div class="results-action-group">
-       <button class="btn btn-outline btn-sm" id="btn-refine-spec">
-        Refine specification
-       </button>
-      </div>
-     </div>
-     <div class="understood-specs-card">
-      <div class="panel-header">
-       <div class="panel-title">
-        <svg aria-hidden="true" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
-         <polyline points="20 6 9 17 4 12">
-         </polyline>
-        </svg>
-        What we understood
-       </div>
-      </div>
-      <div class="specs-grid-layout" id="understood-specs-grid">
-      </div>
-      <div class="missing-info-banner" id="missing-info-box" role="status" style="display:none;">
-       <svg aria-hidden="true" class="missing-info-icon" fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16">
-        <circle cx="12" cy="12" r="10">
-        </circle>
-        <line x1="12" x2="12" y1="8" y2="12">
-        </line>
-        <line x1="12" x2="12.01" y1="16" y2="16">
-        </line>
-       </svg>
-       <div>
-        <div class="missing-info-title">
-         Specification incomplete
+</header>
+
+<main class="main-wrapper" id="main-content">
+
+    <section aria-label="Analyze a specification" class="view-section active" id="view-new-analysis">
+        <form id="spec-analysis-form" novalidate="">
+            <div class="tool-screen">
+
+                <h1 class="tool-heading">
+                    Find potentially relevant Indian Standards
+                    <br/>
+                    for your procurement requirement.
+                </h1>
+
+                <p class="tool-subtext">
+                    Describe your complete procurement requirement in plain language.
+                </p>
+
+                <textarea
+                    aria-label="Procurement specification"
+                    class="spec-textarea"
+                    id="spec-raw-text"
+                    maxlength="5000"
+                    placeholder="e.g. I need 100 pumps of 15 kW for agricultural use, operating at 415V, 50Hz..."
+                    rows="8"
+                ></textarea>
+
+                <button class="tool-analyze-btn" id="btn-submit-analysis" type="submit">
+                    Analyze
+                </button>
+
+                <p class="tool-disclaimer">
+                    AI-assisted recommendations should be verified against
+                    the current official BIS publication.
+                </p>
+
+                <div class="tool-clear-link">
+                    <button class="btn-text-link" id="btn-clear-spec" type="button">
+                        Clear form
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </section>
+
+    <section aria-label="Analysis results" class="view-section" id="view-results">
+
+        <div class="results-back-nav">
+            <div class="results-back-nav-left">
+                <button class="btn-text-link" data-view-target="new-analysis">
+                    &larr; New search
+                </button>
+            </div>
         </div>
+
+        <div class="empty-state-box" id="results-empty-state">
+
+            <svg aria-hidden="true" class="empty-state-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" x2="8" y1="13" y2="13"></line>
+                <line x1="16" x2="8" y1="17" y2="17"></line>
+            </svg>
+
+            <div class="empty-state-title">
+                No analysis yet
+            </div>
+
+            <div class="empty-state-desc">
+                Submit a procurement specification to begin.
+                Results will appear here.
+            </div>
+
+            <div class="empty-state-actions">
+                <button class="btn btn-primary" data-view-target="new-analysis">
+                    Analyze a specification
+                </button>
+            </div>
+
+        </div>
+
+        <div class="results-container" id="results-content-area" style="display:none;">
+
+            <div class="results-summary-banner">
+                <div>
+                    <div class="query-meta-title" id="result-query-timestamp">
+                        Analysis
+                    </div>
+
+                    <div class="query-text-preview" id="result-query-preview">
+                        Procurement requirement
+                    </div>
+                </div>
+
+                <div class="results-action-group">
+                    <button class="btn btn-outline btn-sm" id="btn-refine-spec" type="button">
+                        Refine specification
+                    </button>
+                </div>
+            </div>
+
+            <div class="understood-specs-card">
+
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg aria-hidden="true" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Submitted requirement
+                    </div>
+                </div>
+
+                <div class="specs-grid-layout" id="understood-specs-grid">
+                </div>
+
+                <div class="missing-info-banner" id="missing-info-box" role="status" style="display:none;">
+                    <svg aria-hidden="true" class="missing-info-icon" fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" x2="12" y1="8" y2="12"></line>
+                        <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                    </svg>
+
+                    <div>
+                        <div class="missing-info-title">
+                            Specification incomplete
+                        </div>
+
+                        <div>
+                            Providing additional product, application, or technical details may improve matching accuracy.
+                        </div>
+
+                        <ul class="missing-info-list" id="missing-info-list">
+                        </ul>
+
+                        <div style="margin-top:0.65rem;">
+                            <button class="btn btn-sm btn-secondary" data-view-target="new-analysis" type="button">
+                                Refine specification
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="institutional-notice" id="results-global-warnings" role="alert" style="display:none; background:var(--status-low-bg); border-color:var(--status-low-border); color:var(--status-low-text);">
+            </div>
+
+            <div class="ranked-standards-section">
+
+                <div class="standards-count-header">
+                    <div class="standards-count-title" id="recommendations-count-text">
+                        Retrieved standard matches
+                    </div>
+                </div>
+
+                <div id="ranked-standards-list" style="display:flex; flex-direction:column; gap:0.65rem;">
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <section aria-label="About SpecCipher" class="view-section" id="view-about">
+
+        <div class="view-header">
+            <div>
+                <div class="view-pretitle">
+                    About
+                </div>
+
+                <h1 class="view-title">
+                    SpecCipher
+                </h1>
+
+                <p class="view-description">
+                    Standards recommendation for procurement specifications.
+                </p>
+            </div>
+        </div>
+
+        <div class="about-grid">
+
+            <article class="about-article">
+
+                <h2>
+                    What it does
+                </h2>
+
+                <p>
+                    SpecCipher helps identify potentially relevant Bureau
+                    of Indian Standards (BIS) specifications for a given
+                    procurement requirement. Provide a description of what
+                    you are procuring and the tool returns a ranked list of
+                    candidate standards based on retrieved document content.
+                </p>
+
+                <h2>
+                    Who it is for
+                </h2>
+
+                <p>
+                    Procurement officers, technical evaluation committees,
+                    and specification writers who need to quickly assess
+                    which Indian Standards may be relevant to a product or service.
+                </p>
+
+                <h2>
+                    How to use it
+                </h2>
+
+                <ul>
+                    <li>
+                        Describe the product, technical requirement,
+                        operating conditions, application, and quantity
+                        in plain language.
+                    </li>
+
+                    <li>
+                        Click
+                        <strong>
+                            Analyze
+                        </strong>
+                        and review the ranked results.
+                    </li>
+
+                    <li>
+                        Open
+                        <strong>
+                            View Retrieved Text
+                        </strong>
+                        on a result to inspect the supporting content.
+                    </li>
+                </ul>
+
+                <h2>
+                    Limitations
+                </h2>
+
+                <p>
+                    SpecCipher is a
+                    <strong>
+                        decision-support tool only
+                    </strong>.
+                    Retrieval similarity does not by itself establish
+                    final applicability, compliance, or legal validity.
+                    Results must be independently verified against the
+                    current official BIS publication before use in any
+                    tender document, procurement contract, or legal
+                    compliance context.
+                </p>
+
+                <p>
+                    SpecCipher is not affiliated with or operated by the
+                    Bureau of Indian Standards.
+                </p>
+
+            </article>
+
+            <div class="dashboard-panel" style="height:fit-content;">
+
+                <div class="panel-header">
+                    <div class="panel-title">
+                        Tool details
+                    </div>
+                </div>
+
+                <div class="system-info-list">
+
+                    <div class="info-row">
+                        <span class="info-label">
+                            Standards scope
+                        </span>
+
+                        <span class="info-val">
+                            BIS (Indian)
+                        </span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">
+                            Input
+                        </span>
+
+                        <span class="info-val">
+                            Natural-language text
+                        </span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">
+                            Retrieval
+                        </span>
+
+                        <span class="info-val">
+                            Top 5 matches
+                        </span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">
+                            Output
+                        </span>
+
+                        <span class="info-val">
+                            Decision support
+                        </span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">
+                            Project
+                        </span>
+
+                        <span class="info-val">
+                            SIH 2026
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+<div
+    aria-label="Analyzing specification"
+    aria-modal="true"
+    class="analysis-progress-modal"
+    id="analysis-progress-modal"
+    role="dialog"
+>
+
+    <div class="progress-box">
+
+        <div class="progress-header">
+
+            <div class="progress-title">
+                Analyzing specification
+            </div>
+
+            <div aria-hidden="true" class="progress-badge" id="progress-badge-label">
+            </div>
+
+        </div>
+
+        <div aria-label="Analysis in progress" class="progress-bar-wrap" role="progressbar">
+            <div class="progress-bar-fill">
+            </div>
+        </div>
+
+        <div class="progress-stepper-list">
+
+            <div class="progress-step-item pending" id="step-item-1">
+                <div aria-hidden="true" class="step-num-indicator">
+                    01
+                </div>
+
+                <div class="step-content-meta">
+                    <div class="step-name">
+                        Receiving requirement
+                    </div>
+
+                    <div class="step-desc">
+                        Processing the submitted procurement requirement
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-step-item pending" id="step-item-2">
+                <div aria-hidden="true" class="step-num-indicator">
+                    02
+                </div>
+
+                <div class="step-content-meta">
+                    <div class="step-name">
+                        Searching standards
+                    </div>
+
+                    <div class="step-desc">
+                        Retrieving matching document chunks
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-step-item pending" id="step-item-3">
+                <div aria-hidden="true" class="step-num-indicator">
+                    03
+                </div>
+
+                <div class="step-content-meta">
+                    <div class="step-name">
+                        Ranking matches
+                    </div>
+
+                    <div class="step-desc">
+                        Ordering results by similarity
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-step-item pending" id="step-item-4">
+                <div aria-hidden="true" class="step-num-indicator">
+                    04
+                </div>
+
+                <div class="step-content-meta">
+                    <div class="step-name">
+                        Preparing results
+                    </div>
+
+                    <div class="step-desc">
+                        Preparing source and retrieved text
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="progress-cancel-bar">
+            <span class="progress-status-text">
+                Communicating with backend...
+            </span>
+        </div>
+
+    </div>
+
+</div>
+
+<div
+    aria-label="Standard details"
+    aria-modal="true"
+    class="drawer-overlay"
+    id="standard-details-drawer"
+    role="dialog"
+>
+
+    <div class="drawer-panel">
+
+        <div class="drawer-header">
+
+            <div>
+
+                <div class="drawer-header-meta">
+
+                    <span class="standard-id-tag" id="drawer-standard-id">
+                        IS —
+                    </span>
+
+                    <span class="status-badge active" id="drawer-status-badge">
+                        Retrieved
+                    </span>
+
+                    <span class="brand-badge" id="drawer-version-tag" style="display:none;">
+                    </span>
+
+                </div>
+
+                <div class="drawer-title" id="drawer-standard-title">
+                    Retrieved standard match
+                </div>
+
+            </div>
+
+            <button aria-label="Close" class="drawer-close-btn" type="button">
+                ✕
+            </button>
+
+        </div>
+
+        <div class="drawer-body">
+
+            <div class="document-meta-grid">
+
+                <div class="doc-meta-item">
+                    <div class="doc-meta-label">
+                        Similarity
+                    </div>
+
+                    <div class="doc-meta-val" id="drawer-score-val">
+                        &mdash;
+                    </div>
+                </div>
+
+                <div class="doc-meta-item">
+                    <div class="doc-meta-label">
+                        Rank
+                    </div>
+
+                    <div class="doc-meta-val" id="drawer-conf-val">
+                        &mdash;
+                    </div>
+                </div>
+
+                <div class="doc-meta-item">
+                    <div class="doc-meta-label">
+                        Source pages
+                    </div>
+
+                    <div class="doc-meta-val" id="drawer-clauses-count">
+                        &mdash;
+                    </div>
+                </div>
+
+            </div>
+
+            <div>
+
+                <div class="detail-section-title">
+                    Retrieved section
+                </div>
+
+                <div class="scope-text-block" id="drawer-scope-content">
+                    Section information provided by the retrieval service.
+                </div>
+
+            </div>
+
+            <div>
+
+                <div class="detail-section-title">
+                    Source
+                </div>
+
+                <div class="matched-tags-list" id="drawer-matched-list">
+                </div>
+
+            </div>
+
+            <div>
+
+                <div class="detail-section-title">
+                    Retrieved text
+                </div>
+
+                <div class="evidence-card-list" id="drawer-evidence-list">
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<footer class="app-footer">
+
+    <div class="footer-container">
+
         <div>
-         Providing the following may improve matching accuracy:
+            <strong>
+                SpecCipher
+            </strong>
+            &mdash; Standards recommendation for procurement
         </div>
-        <ul class="missing-info-list" id="missing-info-list">
-        </ul>
-        <div style="margin-top:0.65rem;">
-         <button class="btn btn-sm btn-secondary" data-view-target="new-analysis">
-          Refine specification
-         </button>
+
+        <div class="footer-disclaimer">
+            For decision support only. Verify results against the current official BIS publication.
         </div>
-       </div>
-      </div>
-     </div>
-     <div class="institutional-notice" id="results-global-warnings" role="alert" style="display:none; background:var(--status-low-bg); border-color:var(--status-low-border); color:var(--status-low-text);">
-     </div>
-     <div class="ranked-standards-section">
-      <div class="standards-count-header">
-       <div class="standards-count-title" id="recommendations-count-text">
-        Potentially applicable standards
-       </div>
-       <div aria-label="Filter results" class="standards-filter-pills" role="group">
-        <button class="filter-pill active" data-filter="all">
-         All
-        </button>
-        <button class="filter-pill" data-filter="high">
-         High confidence
-        </button>
-        <button class="filter-pill" data-filter="moderate">
-         Moderate
-        </button>
-        <button class="filter-pill" data-filter="current">
-         Current only
-        </button>
-       </div>
-      </div>
-      <div id="ranked-standards-list" style="display:flex; flex-direction:column; gap:0.65rem;">
-      </div>
-     </div>
+
     </div>
-   </section>
-   <section aria-label="Search Indian Standards" class="view-section" id="view-search">
-    <div class="view-header">
-     <div class="view-title-group-actions">
-      <div>
-       <div class="view-pretitle">
-        Standards catalog
-       </div>
-       <h1 class="view-title">
-        Search Indian Standards
-       </h1>
-       <p class="view-description">
-        Look up BIS standards by IS number or keyword.
-       </p>
-      </div>
-     </div>
-    </div>
-    <div class="search-bar-card">
-     <form id="standards-search-form">
-      <div class="search-input-group">
-       <input aria-label="Search standards" class="search-field" id="search-query-input" placeholder="IS number or product keyword..." type="text"/>
-       <button class="btn btn-primary" type="submit">
-        <svg aria-hidden="true" fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
-         <circle cx="11" cy="11" r="8">
-         </circle>
-         <line x1="21" x2="16.65" y1="21" y2="16.65">
-         </line>
-        </svg>
-        Search
-       </button>
-      </div>
-     </form>
-    </div>
-    <div class="empty-state-box" id="search-empty-state">
-     <svg aria-hidden="true" class="empty-state-icon" fill="none" stroke="currentColor" stroke-width="1.5" viewbox="0 0 24 24">
-      <circle cx="11" cy="11" r="8">
-      </circle>
-      <line x1="21" x2="16.65" y1="21" y2="16.65">
-      </line>
-     </svg>
-     <div class="empty-state-title">
-      Search the standards catalog
-     </div>
-     <div class="empty-state-desc">
-      Enter an IS number or keyword to look up Indian Standards.
-     </div>
-    </div>
-    <div class="search-results-table-wrapper" id="search-results-wrapper" style="display:none;">
-     <div id="search-results-stats" role="status" style="padding:0.6rem 1rem; font-size:0.72rem; color:var(--text-tertiary); border-bottom:1px solid var(--border-default);">
-      Search results
-     </div>
-     <table class="tech-table">
-      <thead>
-       <tr>
-        <th style="width:130px;">
-         Standard
-        </th>
-        <th>
-         Title
-        </th>
-        <th style="width:100px;">
-         Status
-        </th>
-        <th style="width:140px; text-align:right;">
-         Action
-        </th>
-       </tr>
-      </thead>
-      <tbody id="search-results-tbody">
-      </tbody>
-     </table>
-    </div>
-   </section>
-   <section aria-label="About SpecCipher" class="view-section" id="view-about">
-    <div class="view-header">
-     <div>
-      <div class="view-pretitle">
-       About
-      </div>
-      <h1 class="view-title">
-       SpecCipher
-      </h1>
-      <p class="view-description">
-       Standards recommendation for procurement specifications.
-      </p>
-     </div>
-    </div>
-    <div class="about-grid">
-     <article class="about-article">
-      <h2>
-       What it does
-      </h2>
-      <p>
-       SpecCipher helps identify potentially applicable Bureau
-            of Indian Standards (BIS) specifications for a given
-            procurement requirement. Provide a description of what
-            you are procuring &mdash; the tool returns a ranked list of
-            candidate standards with evidence of why each was matched.
-      </p>
-      <h2>
-       Who it is for
-      </h2>
-      <p>
-       Procurement officers, technical evaluation committees,
-            and specification writers who need to quickly assess
-            which Indian Standards may apply to a product or service.
-      </p>
-      <h2>
-       How to use it
-      </h2>
-      <ul>
-       <li>
-        Describe the product, technical requirement, or
-              operating conditions in plain language.
-       </li>
-       <li>
-        Describe the complete requirement, including quantity, technical details, application, and operating conditions.
-       </li>
-       <li>
-        Click
-        <strong>
-         Analyze
-        </strong>
-        and review the ranked results.
-       </li>
-       <li>
-        Click
-        <strong>
-         View Details &amp; Evidence
-        </strong>
-        on any result to inspect supporting information.
-       </li>
-      </ul>
-      <h2>
-       Limitations
-      </h2>
-      <p>
-       SpecCipher is a
-       <strong>
-        decision-support tool only
-       </strong>
-       .
-            Results are indicative. All recommendations must be
-            independently verified against the current official BIS
-            publication before use in any tender document, procurement
-            contract, or legal compliance context.
-      </p>
-      <p>
-       SpecCipher is not affiliated with or operated by the
-            Bureau of Indian Standards.
-      </p>
-     </article>
-     <div class="dashboard-panel" style="height:fit-content;">
-      <div class="panel-header">
-       <div class="panel-title">
-        Tool details
-       </div>
-      </div>
-      <div class="system-info-list">
-       <div class="info-row">
-        <span class="info-label">
-         Standards scope
-        </span>
-        <span class="info-val">
-         BIS (Indian)
-        </span>
-       </div>
-       <div class="info-row">
-        <span class="info-label">
-         Input
-        </span>
-        <span class="info-val">
-         Text, PDF
-        </span>
-       </div>
-       <div class="info-row">
-        <span class="info-label">
-         Output
-        </span>
-        <span class="info-val">
-         Decision support
-        </span>
-       </div>
-       <div class="info-row">
-        <span class="info-label">
-         Project
-        </span>
-        <span class="info-val">
-         SIH 2026
-        </span>
-       </div>
-      </div>
-     </div>
-    </div>
-   </section>
-  </main>
-  <div aria-label="Analyzing specification" aria-modal="true" class="analysis-progress-modal" id="analysis-progress-modal" role="dialog">
-   <div class="progress-box">
-    <div class="progress-header">
-     <div class="progress-title">
-      Analyzing specification
-     </div>
-     <div aria-hidden="true" class="progress-badge" id="progress-badge-label">
-     </div>
-    </div>
-    <div aria-label="Analysis in progress" class="progress-bar-wrap" role="progressbar">
-     <div class="progress-bar-fill">
-     </div>
-    </div>
-    <div class="progress-stepper-list">
-     <div class="progress-step-item pending" id="step-item-1">
-      <div aria-hidden="true" class="step-num-indicator">
-       01
-      </div>
-      <div class="step-content-meta">
-       <div class="step-name">
-        Understanding requirements
-       </div>
-       <div class="step-desc">
-        Parsing the specification
-       </div>
-      </div>
-     </div>
-     <div class="progress-step-item pending" id="step-item-2">
-      <div aria-hidden="true" class="step-num-indicator">
-       02
-      </div>
-      <div class="step-content-meta">
-       <div class="step-name">
-        Searching standards
-       </div>
-       <div class="step-desc">
-        Retrieving candidate Indian Standards
-       </div>
-      </div>
-     </div>
-     <div class="progress-step-item pending" id="step-item-3">
-      <div aria-hidden="true" class="step-num-indicator">
-       03
-      </div>
-      <div class="step-content-meta">
-       <div class="step-name">
-        Checking relevance
-       </div>
-       <div class="step-desc">
-        Scoring and verifying status
-       </div>
-      </div>
-     </div>
-     <div class="progress-step-item pending" id="step-item-4">
-      <div aria-hidden="true" class="step-num-indicator">
-       04
-      </div>
-      <div class="step-content-meta">
-       <div class="step-name">
-        Preparing results
-       </div>
-       <div class="step-desc">
-        Compiling recommendations
-       </div>
-      </div>
-     </div>
-     <div aria-hidden="true" class="progress-step-item pending" id="step-item-5" style="display:none;">
-     </div>
-     <div aria-hidden="true" class="progress-step-item pending" id="step-item-6" style="display:none;">
-     </div>
-    </div>
-    <div class="progress-cancel-bar">
-     <span class="progress-status-text">
-      Communicating with backend...
-     </span>
-    </div>
-   </div>
-  </div>
-  <div aria-label="Standard details" aria-modal="true" class="drawer-overlay" id="standard-details-drawer" role="dialog">
-   <div class="drawer-panel">
-    <div class="drawer-header">
-     <div>
-      <div class="drawer-header-meta">
-       <span class="standard-id-tag" id="drawer-standard-id">
-        IS &mdash;
-       </span>
-       <span class="status-badge current" id="drawer-status-badge">
-        Active
-       </span>
-       <span class="brand-badge" id="drawer-version-tag" style="display:none;">
-       </span>
-      </div>
-      <div class="drawer-title" id="drawer-standard-title">
-       Standard title
-      </div>
-     </div>
-     <button aria-label="Close" class="drawer-close-btn">
-      ✕
-     </button>
-    </div>
-    <div class="drawer-body">
-     <div class="document-meta-grid">
-      <div class="doc-meta-item">
-       <div class="doc-meta-label">
-        Relevance
-       </div>
-       <div class="doc-meta-val" id="drawer-score-val">
-        &mdash;
-       </div>
-      </div>
-      <div class="doc-meta-item">
-       <div class="doc-meta-label">
-        Confidence
-       </div>
-       <div class="doc-meta-val" id="drawer-conf-val">
-        &mdash;
-       </div>
-      </div>
-      <div class="doc-meta-item">
-       <div class="doc-meta-label">
-        Evidence excerpts
-       </div>
-       <div class="doc-meta-val" id="drawer-clauses-count">
-        &mdash;
-       </div>
-      </div>
-     </div>
-     <div>
-      <div class="detail-section-title">
-       Scope
-      </div>
-      <div class="scope-text-block" id="drawer-scope-content">
-       Scope information provided by the backend.
-      </div>
-     </div>
-     <div>
-      <div class="detail-section-title">
-       Why this result
-      </div>
-      <div class="matched-tags-list" id="drawer-matched-list">
-      </div>
-     </div>
-     <div>
-      <div class="detail-section-title">
-       Supporting evidence
-      </div>
-      <div class="evidence-card-list" id="drawer-evidence-list">
-      </div>
-     </div>
-     <div>
-      <div class="detail-section-title">
-       Related standards
-      </div>
-      <div class="relationship-graph-container">
-       <div class="empty-state-box" id="graph-empty-state" style="padding:1.5rem 1rem; border:none;">
-        <div class="empty-state-desc">
-         No related standards data returned for this result.
-        </div>
-       </div>
-       <svg aria-label="Related standards graph" class="graph-svg-wrapper" id="standards-graph-svg" style="display:none;">
-       </svg>
-       <div class="graph-legend">
-        <div class="legend-item">
-         <span class="legend-color" style="background:#0f2744;">
-         </span>
-         Target
-        </div>
-        <div class="legend-item">
-         <span class="legend-color" style="background:#1d4ed8;">
-         </span>
-         Test standard
-        </div>
-        <div class="legend-item">
-         <span class="legend-color" style="background:#ea580c;">
-         </span>
-         Safety standard
-        </div>
-        <div class="legend-item">
-         <span class="legend-color" style="background:#16a34a;">
-         </span>
-         Normative reference
-        </div>
-        <div class="legend-item">
-         <span class="legend-color" style="background:#7c3aed;">
-         </span>
-         Allied standard
-        </div>
-       </div>
-      </div>
-     </div>
-    </div>
-   </div>
-  </div>
-  <footer class="app-footer">
-   <div class="footer-container">
-    <div>
-     <strong>
-      SpecCipher
-     </strong>
-     &mdash; Standards recommendation for procurement
-    </div>
-    <div class="footer-disclaimer">
-     For decision support only. Verify results against the current official BIS publication.
-    </div>
-   </div>
-  </footer>
-  <script src="js/config.js">
-  </script>
-  <script src="js/api.js">
-  </script>
-  <script src="js/ui.js">
-  </script>
-  <script src="js/graph.js">
-  </script>
-  <script src="js/details.js">
-  </script>
-  <script src="js/results.js">
-  </script>
-  <script src="js/search.js">
-  </script>
-  <script src="js/analyze.js">
-  </script>
-  <script src="js/app.js">
-  </script>
- </body>
+
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/details.js"></script>
+<script src="js/results.js"></script>
+<script src="js/analyze.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const textarea = document.getElementById('spec-raw-text');
+    const examples = [
+        'I need 100 pumps of 15 kW for agricultural use.',
+        'Steel pipes for high pressure water supply.',
+        'Electrical cables for industrial power distribution.'
+    ];
+
+    if (textarea) {
+        textarea.addEventListener('input', () => {
+            textarea.setAttribute('data-length', textarea.value.length);
+        });
+
+        textarea.setAttribute('data-length', textarea.value.length);
+    }
+
+    document.querySelectorAll('[data-view-target="new-analysis"]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (textarea) {
+                textarea.focus();
+            }
+        });
+    });
+});
+</script>
+
+</body>
 </html>
