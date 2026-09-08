@@ -3,7 +3,11 @@ class ApiClient {
         this.baseUrl = baseUrl.replace(/\/+$/, '');
     }
 
-    async _fetchWithTimeout(url, options = {}, timeoutMs = CONFIG.TIMEOUT_MS) {
+    async _fetchWithTimeout(
+        url,
+        options = {},
+        timeoutMs = CONFIG.TIMEOUT_MS
+    ) {
         const controller = new AbortController();
 
         const timeout = setTimeout(() => {
@@ -17,7 +21,8 @@ class ApiClient {
             });
 
             if (!response.ok) {
-                let message = `Request failed with status ${response.status}`;
+                let message =
+                    `Request failed with status ${response.status}`;
 
                 try {
                     const errorData = await response.json();
@@ -28,7 +33,7 @@ class ApiClient {
                         message = errorData.error;
                     }
                 } catch {
-                    // Response JSON chilo na
+                    // Server response JSON chilo na
                 }
 
                 throw new Error(message);
@@ -70,39 +75,10 @@ class ApiClient {
 
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json, text/plain'
-            },
-
-            body: JSON.stringify(payload)
-        });
-    }
-
-    async searchStandards(queryPayload) {
-        const url =
-            `${this.baseUrl}${CONFIG.ENDPOINTS.SEARCH}`;
-
-        return await this._fetchWithTimeout(url, {
-            method: 'POST',
-
-            headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
 
-            body: JSON.stringify(queryPayload)
-        });
-    }
-
-    async checkHealth() {
-        const url =
-            `${this.baseUrl}${CONFIG.ENDPOINTS.HEALTH}`;
-
-        return await this._fetchWithTimeout(url, {
-            method: 'GET',
-
-            headers: {
-                'Accept': 'application/json, text/plain'
-            }
+            body: JSON.stringify(payload)
         });
     }
 }

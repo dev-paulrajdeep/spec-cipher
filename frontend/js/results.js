@@ -1,226 +1,532 @@
-class DetailsManager {
-  constructor() {
-    this.currentStandard = null;
-  }
+class ResultsManager {
+    constructor() {
+        this.currentResponse = null;
+        this.currentRecommendations = [];
 
-  openStandardDetails(standard) {
-    if (!standard) return;
-
-    this.currentStandard = standard;
-
-    // Standard er basic information
-    const idEl = document.getElementById('drawer-standard-id');
-    const titleEl = document.getElementById('drawer-standard-title');
-    const statusEl = document.getElementById('drawer-status-badge');
-    const versionEl = document.getElementById('drawer-version-tag');
-
-    if (idEl) {
-      idEl.textContent = standard.standard_id || 'Indian Standard';
+        this.init();
     }
 
-    if (titleEl) {
-      titleEl.textContent = standard.title || 'Standard Specification';
+    init() {
+        /*
+         * Refine button goes back to input screen.
+         */
+        const refineBtn =
+            document.getElementById('btn-refine-spec');
+
+        if (refineBtn) {
+            refineBtn.addEventListener('click', () => {
+                window.ui.switchView('new-analysis');
+            });
+        }
     }
 
-    if (statusEl) {
-      const statusText = standard.status || 'Active';
+    renderResults(response, meta = {}) {
+        this.currentResponse = response;
+        this.currentRecommendations =
+            Array.isArray(response?.recommendations)
+                ? response.recommendations
+                : [];
 
-      statusEl.textContent = statusText;
-      statusEl.className =
-        `status-badge ${statusText.toLowerCase()}`;
-    }
-
-    if (versionEl) {
-      if (standard.version) {
-        versionEl.textContent = `v${standard.version}`;
-        versionEl.style.display = 'inline-flex';
-      } else {
-        versionEl.style.display = 'none';
-      }
-    }
-
-    // Relevance, confidence aar evidence count
-    const scoreValEl =
-      document.getElementById('drawer-score-val');
-
-    const confValEl =
-      document.getElementById('drawer-conf-val');
-
-    const clauseCountEl =
-      document.getElementById('drawer-clauses-count');
-
-    if (scoreValEl) {
-      let scoreText = '—';
-
-      if (typeof standard.relevance_score === 'number') {
-        scoreText =
-          `${Math.round(standard.relevance_score * 100)}%`;
-      } else if (standard.relevance_score != null) {
-        scoreText = String(standard.relevance_score);
-      }
-
-      scoreValEl.textContent = scoreText;
-    }
-
-    if (confValEl) {
-      const confidence = standard.confidence || 'Not available';
-
-      confValEl.textContent = confidence;
-
-      confValEl.className =
-        `confidence-indicator ${confidence.toLowerCase()}`;
-    }
-
-    if (clauseCountEl) {
-      const evidenceCount = Array.isArray(standard.evidence)
-        ? standard.evidence.length
-        : 0;
-
-      clauseCountEl.textContent =
-        evidenceCount > 0
-          ? `${evidenceCount} Cited`
-          : 'None available';
-    }
-
-    // Standard er scope
-    const scopeBox =
-      document.getElementById('drawer-scope-content');
-
-    if (scopeBox) {
-      const scope =
-        standard.scope || standard.description;
-
-      if (scope) {
-        scopeBox.textContent = scope;
-        scopeBox.style.fontStyle = 'normal';
-      } else {
-        scopeBox.textContent =
-          'Scope information is not available.';
-
-        scopeBox.style.fontStyle = 'italic';
-      }
-    }
-
-    // Evidence show korchi
-    const evidenceList =
-      document.getElementById('drawer-evidence-list');
-
-    if (evidenceList) {
-      evidenceList.innerHTML = '';
-
-      if (
-        Array.isArray(standard.evidence) &&
-        standard.evidence.length > 0
-      ) {
-        standard.evidence.forEach((ev) => {
-          const item =
-            document.createElement('div');
-
-          item.className = 'evidence-quote-item';
-
-          const clauseRef =
-            ev.clause ||
-            ev.reference ||
-            ev.section ||
-            'General';
-
-          const srcType =
-            ev.source_type ||
-            'Standard source';
-
-          const quoteText =
-            ev.text ||
-            ev.content ||
-            ev.excerpt ||
-            (
-              typeof ev === 'string'
-                ? ev
-                : ''
+        /*
+         * Hide "No analysis yet"
+         */
+        const emptyState =
+            document.getElementById(
+                'results-empty-state'
             );
 
-          item.innerHTML = `
-            <div class="evidence-meta-header">
-              <span class="evidence-clause-ref">
-                ${window.ui.escapeHtml(clauseRef)}
-              </span>
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
 
-              <span style="color:var(--text-tertiary);">
-                ${window.ui.escapeHtml(srcType)}
-              </span>
+        /*
+         * Show results container
+         */
+        const resultsArea =
+            document.getElementById(
+                'results-content-area'
+            );
+
+        if (resultsArea) {
+            resultsArea.style.display = 'flex';
+        }
+
+        /*
+         * Show the user's original sentence
+         */
+        this.renderQuerySummary(
+            response,
+            meta
+        );
+
+        /*
+         * Show what was received
+         */
+        this.renderUnderstanding(
+            response
+        );
+
+        /*
+         * Show backend warnings
+         */
+        this.renderWarnings(
+            response?.warnings
+        );
+
+        /*
+         * Render retrieved standards
+         */
+        this.renderRecommendations(
+            this.currentRecommendations
+        );
+    }
+
+    renderQuerySummary(response, meta) {
+        const timestampEl =
+            document.getElementById(
+                'result-query-timestamp'
+            );
+
+        const previewEl =
+            document.getElementById(
+                'result-query-preview'
+            );
+
+        const query =
+            meta.querySummary ||
+            response?.user_input ||
+            'Procurement requirement';
+
+        if (timestampEl) {
+            const date =
+                meta.timestamp
+                    ? new Date(meta.timestamp)
+                    : new Date();
+
+            timestampEl.textContent =
+                `Analysis • ${date.toLocaleString()}`;
+        }
+
+        if (previewEl) {
+            previewEl.textContent = query;
+        }
+    }
+
+    renderUnderstanding(response) {
+        const grid =
+            document.getElementById(
+                'understood-specs-grid'
+            );
+
+        if (!grid) {
+            return;
+        }
+
+        const userInput =
+            response?.user_input ||
+            '';
+
+        const recommendations =
+            Array.isArray(response?.recommendations)
+                ? response.recommendations
+                : [];
+
+        /*
+         * There is no requirement extraction object
+         * in the current backend response.
+         *
+         * So we only display information that
+         * actually exists.
+         */
+        grid.innerHTML = `
+            <div class="spec-parameter-cell">
+                <div class="param-key">
+                    User requirement
+                </div>
+
+                <div class="param-val">
+                    ${window.ui.escapeHtml(userInput)}
+                </div>
             </div>
 
-            <div class="evidence-body-text">
-              ${window.ui.escapeHtml(quoteText)}
-            </div>
-          `;
+            <div class="spec-parameter-cell">
+                <div class="param-key">
+                    Retrieved matches
+                </div>
 
-          evidenceList.appendChild(item);
-        });
-      } else {
-        evidenceList.innerHTML = `
-          <div class="empty-state-box"
-               style="padding:1.5rem 1rem; border-style:dashed;">
-            <div class="empty-state-desc">
-              Supporting evidence is not available.
+                <div class="param-val">
+                    ${recommendations.length}
+                </div>
             </div>
-          </div>
         `;
-      }
+
+        /*
+         * Current backend does not return
+         * "missing information", so hide
+         * that warning.
+         */
+        const missingInfoBox =
+            document.getElementById(
+                'missing-info-box'
+            );
+
+        if (missingInfoBox) {
+            missingInfoBox.style.display = 'none';
+        }
     }
 
-    // Kon requirement gulo match koreche
-    const matchedList =
-      document.getElementById('drawer-matched-list');
+    renderWarnings(warnings) {
+        const warningBox =
+            document.getElementById(
+                'results-global-warnings'
+            );
 
-    if (matchedList) {
-      matchedList.innerHTML = '';
+        if (!warningBox) {
+            return;
+        }
 
-      if (
-        Array.isArray(standard.matched_requirements) &&
-        standard.matched_requirements.length > 0
-      ) {
-        standard.matched_requirements.forEach((requirement) => {
-          const tag =
-            document.createElement('span');
+        if (!Array.isArray(warnings) ||
+            warnings.length === 0) {
 
-          tag.className = 'matched-tag';
+            warningBox.style.display =
+                'none';
 
-          const icon = `
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          `;
+            warningBox.textContent = '';
 
-          tag.innerHTML = `
-            ${icon}
-            ${window.ui.escapeHtml(requirement)}
-          `;
+            return;
+        }
 
-          matchedList.appendChild(tag);
+        warningBox.innerHTML = warnings
+            .map((warning) => {
+                return `
+                    <div>
+                        ${window.ui.escapeHtml(warning)}
+                    </div>
+                `;
+            })
+            .join('');
+
+        warningBox.style.display =
+            'block';
+    }
+
+    renderRecommendations(recommendations) {
+        const list =
+            document.getElementById(
+                'ranked-standards-list'
+            );
+
+        const countText =
+            document.getElementById(
+                'recommendations-count-text'
+            );
+
+        if (!list) {
+            return;
+        }
+
+        list.innerHTML = '';
+
+        const items =
+            Array.isArray(recommendations)
+                ? recommendations
+                : [];
+
+        if (countText) {
+            countText.textContent =
+                `${items.length} retrieved match${items.length === 1 ? '' : 'es'}`;
+        }
+
+        if (items.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state-box"
+                     style="padding:1.5rem;">
+                    <div class="empty-state-title">
+                        No matches found
+                    </div>
+
+                    <div class="empty-state-desc">
+                        The retrieval system did not return
+                        any matching document chunks.
+                    </div>
+                </div>
+            `;
+
+            return;
+        }
+
+        items.forEach((standard, index) => {
+            const card =
+                this.createRecommendationCard(
+                    standard,
+                    index
+                );
+
+            list.appendChild(card);
         });
-      } else {
-        matchedList.innerHTML = `
-          <span style="color:var(--text-tertiary); font-size:0.84rem;">
-            No specific matches were returned.
-          </span>
+    }
+
+    createRecommendationCard(standard, index) {
+        const card =
+            document.createElement('div');
+
+        card.className =
+            'standard-record-card';
+
+        const rank =
+            standard?.rank ??
+            index + 1;
+
+        const standardNumber =
+            standard?.standard_number ||
+            'Indian Standard not identified';
+
+        const title =
+            standard?.title ||
+            standard?.section_title ||
+            'Standard title not available';
+
+        const sectionNumber =
+            standard?.section_number ||
+            '—';
+
+        const sectionTitle =
+            standard?.section_title ||
+            'Section not available';
+
+        const text =
+            standard?.text ||
+            'No retrieved text available.';
+
+        const score =
+            this.formatScore(
+                standard?.score
+            );
+
+        const sourceFile =
+            standard?.source?.source_file ||
+            'Source unavailable';
+
+        const pageStart =
+            standard?.source?.page_start;
+
+        const pageEnd =
+            standard?.source?.page_end;
+
+        const pages =
+            this.formatPages(
+                pageStart,
+                pageEnd
+            );
+
+        const preview =
+            this.createPreview(text);
+
+        card.innerHTML = `
+            <div class="record-main-row">
+
+                <div class="rank-badge">
+                    #${window.ui.escapeHtml(rank)}
+                </div>
+
+                <div class="standard-info-col">
+
+                    <div class="standard-code-row">
+
+                        <span class="standard-id-tag">
+                            ${window.ui.escapeHtml(standardNumber)}
+                        </span>
+
+                        <span class="status-badge active">
+                            Retrieved
+                        </span>
+
+                    </div>
+
+                    <div class="standard-title-text">
+                        ${window.ui.escapeHtml(title)}
+                    </div>
+
+                    <div class="standard-meta-chips">
+
+                        <span>
+                            Section:
+                            ${window.ui.escapeHtml(sectionNumber)}
+                        </span>
+
+                        <span>
+                            ${window.ui.escapeHtml(sectionTitle)}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="record-metrics-col">
+
+                    <div class="metric-item">
+                        <span class="metric-label">
+                            Similarity
+                        </span>
+
+                        <span class="metric-score-val">
+                            ${window.ui.escapeHtml(score)}
+                        </span>
+                    </div>
+
+                    <div class="metric-item">
+                        <span class="metric-label">
+                            Rank
+                        </span>
+
+                        <span class="metric-score-val">
+                            #${window.ui.escapeHtml(rank)}
+                        </span>
+                    </div>
+
+                </div>
+
+                <div class="record-actions-col">
+
+                    <button
+                        class="btn btn-outline btn-sm"
+                        type="button"
+                        data-action="details">
+                        View Retrieved Text
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="record-reasoning-panel">
+
+                <div>
+
+                    <div class="reason-box-title">
+                        Retrieved content
+                    </div>
+
+                    <div style="
+                        color:var(--text-secondary);
+                        line-height:1.55;
+                    ">
+                        ${window.ui.escapeHtml(preview)}
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <div class="reason-box-title">
+                        Source
+                    </div>
+
+                    <div style="
+                        color:var(--text-secondary);
+                        line-height:1.55;
+                    ">
+                        <div>
+                            ${window.ui.escapeHtml(sourceFile)}
+                        </div>
+
+                        <div>
+                            Pages:
+                            ${window.ui.escapeHtml(pages)}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
         `;
-      }
+
+        const detailsButton =
+            card.querySelector(
+                '[data-action="details"]'
+            );
+
+        if (detailsButton) {
+            detailsButton.addEventListener(
+                'click',
+                () => {
+                    if (
+                        window.detailsManager &&
+                        typeof window.detailsManager
+                            .openStandardDetails ===
+                            'function'
+                    ) {
+                        window.detailsManager
+                            .openStandardDetails(
+                                standard
+                            );
+                    }
+                }
+            );
+        }
+
+        return card;
     }
 
-    // Related standards graph
-    if (window.graphVisualizer) {
-      window.graphVisualizer.renderGraph(standard);
+    formatScore(score) {
+        if (
+            typeof score !== 'number' ||
+            Number.isNaN(score)
+        ) {
+            return '—';
+        }
+
+        /*
+         * Backend score is expected to be 0..1.
+         */
+        if (score >= 0 && score <= 1) {
+            return `${Math.round(score * 100)}%`;
+        }
+
+        return String(score);
     }
 
-    // Details panel open korchi
-    window.ui.openDrawer();
-  }
+    formatPages(start, end) {
+        if (
+            typeof start !== 'number' &&
+            typeof end !== 'number'
+        ) {
+            return '—';
+        }
+
+        if (
+            typeof start === 'number' &&
+            typeof end === 'number'
+        ) {
+            if (start === end) {
+                return String(start);
+            }
+
+            return `${start}–${end}`;
+        }
+
+        return String(
+            typeof start === 'number'
+                ? start
+                : end
+        );
+    }
+
+    createPreview(text) {
+        const safeText =
+            String(text || '');
+
+        if (safeText.length <= 280) {
+            return safeText;
+        }
+
+        return (
+            safeText.substring(0, 280) +
+            '...'
+        );
+    }
 }
 
-window.detailsManager = new DetailsManager();
+window.resultsManager =
+    new ResultsManager();
