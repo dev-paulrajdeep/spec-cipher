@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "3dea8807db4c3bd46bcaa163c221fce6369d2a74",
+    "indexed_at": "2026-09-08T19:17:08Z",
+    "project": "spec-cipher",
+    "nodes": 905,
+    "edges": 4314,
+    "original_size": 4194304,
+    "compressed_size": 742160,
+    "compression_level": 9
+}
