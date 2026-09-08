@@ -21,6 +21,8 @@ class Recommendation:
     applicability: ApplicabilityScore
     evidence: tuple[EvidenceItem, ...]
     related_standards: tuple[RelatedStandard, ...]
+    status: str | None = None
+    version: str | None = None
     warnings: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
@@ -30,8 +32,8 @@ class Recommendation:
             "title": self.title,
             "final_score": self.final_score,
             "rank": self.rank,
-            "status": None,
-            "version": None,
+            "status": self.status,
+            "version": self.version,
             "constraints": {
                 "admissible": self.constraint_result.admissible,
                 "reasons": [
