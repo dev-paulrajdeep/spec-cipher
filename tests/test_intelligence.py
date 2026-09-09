@@ -113,6 +113,28 @@ def test_engine_end_to_end_orders_recommendations_and_retains_rejections(knowled
     assert {"constraints", "reranking", "applicability", "relationships", "evidence"} <= run.metrics.stages.keys()
 
 
+def test_engine_promotes_best_explicit_is_reference_from_container_evidence() -> None:
+    container = StandardMetadata("SP 7:2026", "National Building Construction Standards", 2026, None, None, "current", "SP 7_2026.pdf", 1)
+    knowledge_base = CorpusKnowledgeBase({"SP 7:2026": StandardContext(container, "copper wire rods")})
+    candidate = result(
+        "container",
+        "SP 7:2026",
+        "IS 12444 : 2020 Copper wire rods for electrical applications — Specification (first revision)",
+        1,
+        0.8,
+    )
+
+    run = IntelligenceEngine(knowledge_base=knowledge_base).recommend(
+        "Copper wire rods for electrical applications",
+        (candidate,),
+    )
+
+    assert len(run.recommendations) == 1
+    assert run.recommendations[0].standard_number == "IS 12444:2020"
+    assert run.recommendations[0].title.startswith("Copper wire rods for electrical applications")
+    assert run.recommendations[0].evidence[0].source_file == "SP 7:2026.pdf"
+
+
 def test_empty_candidates_and_reranker_failure_are_handled(knowledge) -> None:
     empty = IntelligenceEngine(knowledge_base=knowledge).recommend("waterproofing", ())
     assert empty.recommendations == ()

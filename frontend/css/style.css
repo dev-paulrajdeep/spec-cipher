@@ -1115,6 +1115,37 @@ pre {
   color: var(--status-low-text);
 }
 
+.recommendation-copy {
+  color: var(--text-secondary);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.recommendation-context {
+  grid-column: 1 / -1;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.standard-record-card .record-main-row {
+  min-height: 118px;
+}
+
+.standard-record-card .standard-id-tag {
+  font-size: 0.95rem;
+  color: var(--brand-primary);
+}
+
+.standard-record-card .standard-title-text {
+  font-size: 1rem;
+  font-weight: 600;
+  max-width: 720px;
+}
+
+.standard-record-card .record-reasoning-panel {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.4fr);
+}
+
 .drawer-overlay {
   position: fixed;
   inset: 0;

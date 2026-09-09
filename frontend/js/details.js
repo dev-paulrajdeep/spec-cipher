@@ -70,7 +70,7 @@ class DetailsManager {
         const title =
             standard.title ||
             standard.section_title ||
-            'Retrieved standard match';
+            'Recommended standard';
 
         if (idEl) {
             idEl.textContent =
@@ -88,7 +88,7 @@ class DetailsManager {
          */
         if (statusEl) {
             statusEl.textContent =
-                'Retrieved';
+                'Recommended';
 
             statusEl.className =
                 'status-badge active';
@@ -123,7 +123,7 @@ class DetailsManager {
         if (scoreEl) {
             scoreEl.textContent =
                 this.formatScore(
-                    standard.score
+                    standard.final_score ?? standard.score
                 );
         }
 
@@ -138,8 +138,7 @@ class DetailsManager {
         }
 
         if (pagesEl) {
-            const source =
-                standard.source || {};
+            const source = standard.evidence?.[0] || standard.source || {};
 
             pagesEl.textContent =
                 this.formatPages(
@@ -159,11 +158,14 @@ class DetailsManager {
             return;
         }
 
+        const evidence = standard.evidence?.[0] || {};
         const number =
+            evidence.section_number ||
             standard.section_number ||
             '';
 
         const title =
+            evidence.section_title ||
             standard.section_title ||
             '';
 
@@ -196,7 +198,7 @@ class DetailsManager {
 
     renderSource(standard) {
         const source =
-            standard.source || {};
+            standard.evidence?.[0] || standard.source || {};
 
         const matchedList =
             document.getElementById(
@@ -287,6 +289,7 @@ class DetailsManager {
         evidenceList.innerHTML = '';
 
         const text =
+            standard.evidence?.[0]?.text ||
             standard.text ||
             '';
 
@@ -320,7 +323,7 @@ class DetailsManager {
 
         const sectionTitle =
             standard.section_title ||
-            'Retrieved chunk';
+            'Source evidence';
 
         item.innerHTML = `
             <div class="evidence-meta-header">

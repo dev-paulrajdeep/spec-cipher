@@ -158,7 +158,7 @@ class ResultsManager {
 
             <div class="spec-parameter-cell">
                 <div class="param-key">
-                    Retrieved matches
+                    Recommended standards
                 </div>
 
                 <div class="param-val">
@@ -241,7 +241,9 @@ class ResultsManager {
 
         if (countText) {
             countText.textContent =
-                `${items.length} retrieved match${items.length === 1 ? '' : 'es'}`;
+                items.length === 0
+                    ? 'No recommended standards found'
+                    : `${items.length} recommended standard${items.length === 1 ? '' : 's'}`;
         }
 
         if (items.length === 0) {
@@ -249,12 +251,12 @@ class ResultsManager {
                 <div class="empty-state-box"
                      style="padding:1.5rem;">
                     <div class="empty-state-title">
-                        No matches found
+                        No recommended standards found
                     </div>
 
                     <div class="empty-state-desc">
-                        The retrieval system did not return
-                        any matching document chunks.
+                        We could not identify a sufficiently relevant
+                        Indian Standard from the available evidence.
                     </div>
                 </div>
             `;
@@ -274,245 +276,96 @@ class ResultsManager {
     }
 
     createRecommendationCard(standard, index) {
-        const card =
-            document.createElement('div');
+        const card = document.createElement('div');
+        card.className = 'standard-record-card';
 
-        card.className =
-            'standard-record-card';
+        const rank = standard?.rank ?? index + 1;
+        const standardNumber = standard?.standard_number || 'Indian Standard not identified';
+        const title = standard?.title || 'Standard title not available';
+        const evidence = standard?.evidence?.[0] || {};
+        const sectionNumber = evidence.section_number || '';
+        const sectionTitle = evidence.section_title || '';
+        const text = evidence.text || 'Source text is not available.';
+        const score = this.formatScore(standard?.final_score ?? standard?.score);
+        const sourceFile = evidence.source_file || 'Source unavailable';
+        const pages = this.formatPages(evidence.page_start, evidence.page_end);
+        const preview = this.createPreview(text);
+        const explanation = standard?.explanation;
+        const explanationSummary = explanation && typeof explanation === 'object'
+            ? explanation.summary
+            : typeof explanation === 'string' ? explanation : '';
+        const relatedStandards = Array.isArray(standard?.related_standards)
+            ? standard.related_standards
+            : [];
 
-        const rank =
-            standard?.rank ??
-            index + 1;
+        const explanationMarkup = explanationSummary
+            ? `
+                <div data-testid="recommendation-explanation">
+                    <div class="reason-box-title">Explanation</div>
+                    <div class="recommendation-copy">${window.ui.escapeHtml(explanationSummary)}</div>
+                </div>
+            `
+            : '';
 
-        const standardNumber =
-            standard?.standard_number ||
-            'Indian Standard not identified';
-
-        const title =
-            standard?.title ||
-            standard?.section_title ||
-            'Standard title not available';
-
-        const sectionNumber =
-            standard?.section_number ||
-            '—';
-
-        const sectionTitle =
-            standard?.section_title ||
-            standard?.evidence?.[0]?.section_title ||
-            'Section not available';
-
-        const text =
-            standard?.text ||
-            standard?.evidence?.[0]?.text ||
-            'No retrieved text available.';
-
-        const score =
-            this.formatScore(
-                standard?.score ??
-                standard?.final_score
-            );
-
-        const evidence =
-            standard?.evidence?.[0] || {};
-
-        const sourceFile =
-            standard?.source?.source_file ||
-            evidence.source_file ||
-            'Source unavailable';
-
-        const pageStart =
-            standard?.source?.page_start ??
-            evidence.page_start;
-
-        const pageEnd =
-            standard?.source?.page_end ??
-            evidence.page_end;
-
-        const pages =
-            this.formatPages(
-                pageStart,
-                pageEnd
-            );
-
-        const preview =
-            this.createPreview(text);
-
-        const explanation =
-            standard?.explanation;
-
-        const relatedStandards =
-            Array.isArray(standard?.related_standards)
-                ? standard.related_standards
-                : [];
-
-        const explanationMarkup =
-            explanation && typeof explanation === 'object'
-                ? `
-                    <div data-testid="recommendation-explanation">
-                        <div class="reason-box-title">
-                            Explanation
-                        </div>
-
-                        <div style="color:var(--text-secondary); line-height:1.55;">
-                            ${window.ui.escapeHtml(explanation.summary || '')}
-                        </div>
-
-                        ${Array.isArray(explanation.key_points) && explanation.key_points.length > 0 ? `
-                            <ul class="reason-bullets">
-                                ${explanation.key_points.map((point) => `<li>${window.ui.escapeHtml(point)}</li>`).join('')}
-                            </ul>
-                        ` : ''}
-
-                        ${Array.isArray(explanation.caveats) && explanation.caveats.length > 0 ? `
-                            <div data-testid="recommendation-caveats">
-                                <div class="reason-box-title">
-                                    Caveats
-                                </div>
-                                <ul class="reason-bullets">
-                                    ${explanation.caveats.map((caveat) => `<li>${window.ui.escapeHtml(caveat)}</li>`).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-                    </div>
-                `
-                : '';
-
-        const relatedMarkup =
-            relatedStandards.length > 0
-                ? `
-                    <div data-testid="related-standards">
-                        <div class="reason-box-title">
-                            Related standards
-                        </div>
-                        <ul class="reason-bullets">
-                            ${relatedStandards.map((related) => `<li>${window.ui.escapeHtml(related.standard_number || 'Related standard')}</li>`).join('')}
-                        </ul>
-                    </div>
-                `
-                : '';
+        const relatedMarkup = relatedStandards.length > 0
+            ? `
+                <div data-testid="related-information">
+                    <div class="reason-box-title">Related information</div>
+                    <ul class="reason-bullets">
+                        ${relatedStandards.map((related) => `<li>${window.ui.escapeHtml(related.standard_number || 'Related standard')}</li>`).join('')}
+                    </ul>
+                </div>
+            `
+            : '';
 
         card.innerHTML = `
             <div class="record-main-row">
-
-                <div class="rank-badge">
-                    #${window.ui.escapeHtml(rank)}
-                </div>
-
+                <div class="rank-badge">#${window.ui.escapeHtml(rank)}</div>
                 <div class="standard-info-col">
-
                     <div class="standard-code-row">
-
-                        <span class="standard-id-tag">
-                            ${window.ui.escapeHtml(standardNumber)}
-                        </span>
-
-                        <span class="status-badge active">
-                            Retrieved
-                        </span>
-
+                        <span class="standard-id-tag">${window.ui.escapeHtml(standardNumber)}</span>
+                        <span class="status-badge active">Recommended</span>
                     </div>
-
-                    <div class="standard-title-text">
-                        ${window.ui.escapeHtml(title)}
-                    </div>
-
-                    <div class="standard-meta-chips">
-
-                        <span>
-                            Section:
-                            ${window.ui.escapeHtml(sectionNumber)}
-                        </span>
-
-                        <span>
-                            ${window.ui.escapeHtml(sectionTitle)}
-                        </span>
-
-                    </div>
-
+                    <div class="standard-title-text">${window.ui.escapeHtml(title)}</div>
                 </div>
-
                 <div class="record-metrics-col">
-
                     <div class="metric-item">
-                        <span class="metric-label">
-                            Similarity
-                        </span>
-
-                        <span class="metric-score-val">
-                            ${window.ui.escapeHtml(score)}
-                        </span>
+                        <span class="metric-label">Relevance</span>
+                        <span class="metric-score-val">${window.ui.escapeHtml(score)}</span>
                     </div>
-
                     <div class="metric-item">
-                        <span class="metric-label">
-                            Rank
-                        </span>
-
-                        <span class="metric-score-val">
-                            #${window.ui.escapeHtml(rank)}
-                        </span>
+                        <span class="metric-label">Rank</span>
+                        <span class="metric-score-val">#${window.ui.escapeHtml(rank)}</span>
                     </div>
-
                 </div>
-
                 <div class="record-actions-col">
-
-                    <button
-                        class="btn btn-outline btn-sm"
-                        type="button"
-                        data-action="details">
-                        View Retrieved Text
+                    <button class="btn btn-outline btn-sm" type="button" data-action="details">
+                        View Source Text
                     </button>
-
                 </div>
-
             </div>
 
             <div class="record-reasoning-panel">
-
                 <div>
-
-                    <div class="reason-box-title">
-                        Retrieved content
+                    <div class="reason-box-title">Source evidence</div>
+                    <div class="recommendation-copy">
+                        ${window.ui.escapeHtml(sourceFile)}
+                        ${pages !== '—' ? ` · Page ${window.ui.escapeHtml(pages)}` : ''}
+                        ${sectionTitle ? `<div>${window.ui.escapeHtml(sectionTitle)}</div>` : ''}
                     </div>
-
-                    <div style="
-                        color:var(--text-secondary);
-                        line-height:1.55;
-                    ">
-                        ${window.ui.escapeHtml(preview)}
-                    </div>
-
                 </div>
-
                 <div>
-
-                    <div class="reason-box-title">
-                        Source
-                    </div>
-
-                    <div style="
-                        color:var(--text-secondary);
-                        line-height:1.55;
-                    ">
-                        <div>
-                            ${window.ui.escapeHtml(sourceFile)}
-                        </div>
-
-                        <div>
-                            Pages:
-                            ${window.ui.escapeHtml(pages)}
-                        </div>
-
-                    </div>
-
+                    <div class="reason-box-title">Extracted content</div>
+                    <div class="recommendation-copy">${window.ui.escapeHtml(preview)}</div>
                 </div>
-
+                ${sectionTitle ? `
+                    <div>
+                        <div class="reason-box-title">Context</div>
+                        <div class="recommendation-copy">${window.ui.escapeHtml(sectionNumber ? `${sectionNumber} — ${sectionTitle}` : sectionTitle)}</div>
+                    </div>
+                ` : ''}
                 ${explanationMarkup}
-
                 ${relatedMarkup}
-
             </div>
         `;
 

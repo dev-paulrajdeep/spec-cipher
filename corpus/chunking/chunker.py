@@ -6,7 +6,8 @@ from dataclasses import dataclass
 import hashlib
 import re
 
-from corpus.models import DocumentChunk, Section
+from corpus.models import DocumentChunk, Section, SectionFragment
+from corpus.processing.normalizer import find_standard_references
 
 
 @dataclass(frozen=True)
@@ -34,23 +35,26 @@ class DocumentChunker:
     ) -> tuple[DocumentChunk, ...]:
         chunks: list[DocumentChunk] = []
         for section in sections:
-            for part in self._split(section.text):
-                ordinal = len(chunks) + 1
-                identity = "|".join(
-                    (source_file, standard_number or "", section.section_number or "preamble", str(ordinal))
-                )
-                chunks.append(
-                    DocumentChunk(
-                        chunk_id="chunk_" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20],
-                        standard_number=standard_number,
-                        source_file=source_file,
-                        page_start=section.page_start,
-                        page_end=section.page_end,
-                        section_number=section.section_number,
-                        section_title=section.title,
-                        text=part,
+            fragments = section.fragments or (SectionFragment(section.page_start, section.text),)
+            for fragment in fragments:
+                for part in self._split(fragment.text):
+                    ordinal = len(chunks) + 1
+                    identity = "|".join(
+                        (source_file, standard_number or "", section.section_number or "preamble", str(ordinal))
                     )
-                )
+                    chunks.append(
+                        DocumentChunk(
+                            chunk_id="chunk_" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20],
+                            standard_number=standard_number,
+                            source_file=source_file,
+                            page_start=fragment.page_number,
+                            page_end=fragment.page_number,
+                            section_number=section.section_number,
+                            section_title=section.title,
+                            text=part,
+                            referenced_standards=find_standard_references(part),
+                        )
+                    )
         return tuple(chunks)
 
     def _split(self, text: str) -> list[str]:

@@ -53,6 +53,11 @@ class SentenceTransformerEncoder:
         self._model = None
 
     @property
+    def configured_dimension(self) -> int | None:
+        """Return a persisted dimension without loading model weights."""
+        return self._embedding_dimension
+
+    @property
     def model_name(self) -> str:
         return self._model_name
 

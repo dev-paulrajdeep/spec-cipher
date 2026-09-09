@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 import logging
+import re
 from time import perf_counter
 
 from intelligence.applicability import ApplicabilityAssessor, DeterministicRequirementInterpreter, RequirementInterpreter
@@ -14,6 +15,8 @@ from intelligence.instrumentation import PipelineMetrics
 from intelligence.models import Recommendation, ScoredCandidate
 from intelligence.relationships import CorpusKnowledgeBase
 from intelligence.reranking import CrossEncoderReranker, Reranker, TokenOverlapReranker
+from intelligence.text import tokenize
+from corpus.processing.normalizer import normalize_standard_number
 from retrieval.models import RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -119,14 +122,14 @@ class IntelligenceEngine:
             ))
         metrics.record("applicability", started, len(scored))
 
-        recommendations = self._recommendations(tuple(scored), metrics)
+        recommendations = self._recommendations(requirement, tuple(scored), metrics)
         logger.info(
             "Intelligence pipeline completed: candidates=%d admissible=%d recommendations=%d",
             len(source), len(admissible), len(recommendations),
         )
         return IntelligenceRun(recommendations, tuple(scored), metrics)
 
-    def _recommendations(self, candidates: tuple[ScoredCandidate, ...], metrics: PipelineMetrics) -> tuple[Recommendation, ...]:
+    def _recommendations(self, requirement: str, candidates: tuple[ScoredCandidate, ...], metrics: PipelineMetrics) -> tuple[Recommendation, ...]:
         eligible = [
             item for item in candidates
             if item.candidate.chunk.standard_number
@@ -136,10 +139,12 @@ class IntelligenceEngine:
             and item.final_score is not None
         ]
         groups: OrderedDict[str, list[ScoredCandidate]] = OrderedDict()
+        titles: dict[str, str | None] = {}
         for item in eligible:
-            standard = item.candidate.chunk.standard_number
+            standard, title = self._recommendation_standard(item, requirement)
             if standard:
                 groups.setdefault(standard, []).append(item)
+                titles.setdefault(standard, title)
         ranked_groups = sorted(
             groups.items(),
             key=lambda entry: (-max(item.final_score or 0.0 for item in entry[1]), entry[0]),
@@ -168,7 +173,7 @@ class IntelligenceEngine:
             evidence = self.evidence_locator.select(tuple(group), self.config.evidence_limit)
             output.append(Recommendation(
                 standard_number=standard,
-                title=context.metadata.title if context.metadata else None,
+                title=titles.get(standard) or (context.metadata.title if context.metadata else None),
                 final_score=primary.final_score or 0.0,
                 rank=rank,
                 constraint_result=primary.constraint_result,
@@ -182,6 +187,38 @@ class IntelligenceEngine:
             ))
         metrics.record("evidence", evidence_started, sum(len(item.evidence) for item in output))
         return tuple(output)
+
+    @staticmethod
+    def _recommendation_standard(item: ScoredCandidate, requirement: str) -> tuple[str | None, str | None]:
+        """Use the best explicit IS reference when evidence is a container document."""
+        chunk = item.candidate.chunk
+        fallback = chunk.standard_number
+        text = chunk.text or ""
+        matches = list(re.finditer(
+            r"\bIS\s*\d{1,5}(?:\s*\(\s*(?:Part|Section)\s*\d+\s*\))?(?:\s*[:_]\s*\d{4})?",
+            text,
+            re.IGNORECASE,
+        ))
+        if not matches:
+            return fallback, None
+
+        requirement_tokens = tokenize(requirement)
+        best: tuple[float, str, str | None] | None = None
+        for index, match in enumerate(matches):
+            standard = normalize_standard_number(match.group(0))
+            if not standard or standard == fallback:
+                continue
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            segment = text[match.end():end].strip(" :-\n\t")
+            segment_tokens = tokenize(segment)
+            score = len(requirement_tokens & segment_tokens)
+            candidate = (float(score), standard, segment or None)
+            if best is None or candidate[0] > best[0]:
+                best = candidate
+
+        if best is None:
+            return fallback, None
+        return best[1], best[2]
 
     def _configured_reranker(self) -> Reranker:
         if self.config.reranker == "cross_encoder":

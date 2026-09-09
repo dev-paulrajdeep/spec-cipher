@@ -33,5 +33,6 @@ def write_chunks_jsonl(chunks: tuple[DocumentChunk, ...], path: str | Path) -> N
                 "section_number": chunk.section_number,
                 "section_title": chunk.section_title,
                 "text": chunk.text,
+                "referenced_standards": list(chunk.referenced_standards),
             }
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")

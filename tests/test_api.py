@@ -131,7 +131,7 @@ def test_endpoint_adds_explanation_without_changing_recommendation_fields(
     assert stable_recommendation_fields(payload) == stable_recommendation_fields(source.to_dict())
     assert payload["warnings"] == source.to_dict()["warnings"]
     assert payload["explanation"] == explanation
-    assert retriever.calls == [("waterproofing compound for concrete", 5)]
+    assert retriever.calls == [("waterproofing compound for concrete", 50)]
     assert reasoner.calls == [("waterproofing compound for concrete", source)]
 
 

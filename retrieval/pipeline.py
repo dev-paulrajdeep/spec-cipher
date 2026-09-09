@@ -45,7 +45,8 @@ class RetrievalPipeline:
             raise ValueError("Encoder model_name must match RetrievalConfig.embedding_model")
         if self.encoder.normalize_embeddings != self.config.normalize_embeddings:
             raise ValueError("Encoder normalization must match RetrievalConfig")
-        if self.config.embedding_dimension is not None and self.encoder.dimension != self.config.embedding_dimension:
+        configured_dimension = getattr(self.encoder, "configured_dimension", None)
+        if self.config.embedding_dimension is not None and configured_dimension is None and self.encoder.dimension != self.config.embedding_dimension:
             raise ValueError("Encoder dimension must match RetrievalConfig.embedding_dimension")
         self.loader = loader or CorpusChunkLoader()
         self.persistence = persistence or IndexPersistence()
@@ -97,12 +98,13 @@ class RetrievalPipeline:
 
     def load(self, directory: str | Path) -> SemanticRetriever:
         """Load only an index compatible with this pipeline's embedding configuration."""
+        expected_dimension = getattr(self.encoder, "configured_dimension", None) or self.encoder.dimension
         bundle = self.persistence.load(
             directory,
             expected_embedding_backend=getattr(self.encoder, "backend_name", "custom"),
             expected_embedding_model=self.encoder.model_name,
             expected_embedding_model_version=getattr(self.encoder, "model_version", "unknown"),
-            expected_dimension=self.encoder.dimension,
+            expected_dimension=expected_dimension,
             expected_normalize_embeddings=self.encoder.normalize_embeddings,
         )
         logger.info(

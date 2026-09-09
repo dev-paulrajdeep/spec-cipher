@@ -5,13 +5,9 @@ from __future__ import annotations
 import re
 
 from corpus.models import CorpusPage, Section, StandardRelationship
-from corpus.processing.normalizer import normalize_standard_number
+from corpus.processing.normalizer import find_standard_references
 
 
-_REFERENCE_RE = re.compile(
-    r"\b(?:IS|SP)\s*\d{1,5}(?:\s*\(\s*(?:Part|Section)\s*\d+\s*\))?(?:\s*[:_]\s*\d{4})?",
-    re.I,
-)
 _RELATION_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("superseded_by", re.compile(r"\bsuperseded\s+by\b", re.I)),
     ("supersedes", re.compile(r"\bsupersedes\b", re.I)),
@@ -40,8 +36,7 @@ class RelationshipExtractor:
         }
         for page in pages:
             for line in page.cleaned_text.splitlines():
-                targets = [normalize_standard_number(item.group(0)) for item in _REFERENCE_RE.finditer(line)]
-                for target in (item for item in targets if item):
+                for target in find_standard_references(line):
                     if target == source_standard_number and not self._explicit_relation(line):
                         continue
                     relationship_type = self._relationship_type(line, page.page_number in reference_pages)

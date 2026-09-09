@@ -233,6 +233,12 @@ class IndexPersistence:
                 or any(not isinstance(value, str) or not value.strip() for value in element_ids)
             ):
                 raise IndexCompatibilityError(f"Persisted chunk {position} has invalid element provenance")
+            referenced_standards = row.get("referenced_standards", [])
+            if (
+                not isinstance(referenced_standards, list)
+                or any(not isinstance(value, str) or not value.strip() for value in referenced_standards)
+            ):
+                raise IndexCompatibilityError(f"Persisted chunk {position} has invalid referenced standards")
             chunks.append(DocumentChunk(
                 chunk_id=chunk_id,
                 standard_number=standard_number,
@@ -243,6 +249,7 @@ class IndexPersistence:
                 section_title=section_title,
                 text=text,
                 element_ids=tuple(element_ids),
+                referenced_standards=tuple(referenced_standards),
             ))
         chunk_ids = [chunk.chunk_id for chunk in chunks]
         if len(chunk_ids) != len(set(chunk_ids)):

@@ -7,6 +7,7 @@ from pathlib import Path
 # CHANGING ROOT PATH THAT PYTHON USES
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
 from retrieval.service import RetrievalService, RetrievalUnavailableError
 from retrieval.indexing import IndexCompatibilityError 
 from retrieval.config import RetrievalConfig
@@ -24,12 +25,18 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Frontend folder is beside the backend folder
 FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
+MAX_RECOMMENDATIONS = 5
+RETRIEVAL_CANDIDATE_LIMIT = 50
 
 # Generated retrieval bundle; build it before starting Flask.
 RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
 retriever = RetrievalService.from_persisted(
     RETRIEVAL_INDEX_DIR,
-    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=False),
+    config=RetrievalConfig(
+        embedding_dimension=1024,
+        reranker_enabled=True,
+        sequential_model_lifecycle=False,
+    ),
 )
 close_retriever = getattr(retriever, "close", None)
 if callable(close_retriever):
@@ -96,9 +103,12 @@ def analyse_input():
         # re-entrant lifecycle lock so another request cannot load BGE models
         # while Ollama is generating an explanation for this request.
         with retriever._search_lock:
-            results = retriever.search(user_input, top_k=5)
+            results = retriever.search(user_input, top_k=RETRIEVAL_CANDIDATE_LIMIT)
             run = intelligence.recommend(user_input, results)
-            recommendations = _serialize_recommendations(user_input, run.recommendations)
+            recommendations = _serialize_recommendations(
+                user_input,
+                run.recommendations[:MAX_RECOMMENDATIONS],
+            )
 
     # handling the 4 errors specifically asked     
     except ValueError as error:

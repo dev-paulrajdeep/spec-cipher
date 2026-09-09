@@ -7,7 +7,11 @@ import unicodedata
 
 
 _STANDARD_RE = re.compile(
-    r"\b(?P<prefix>IS|SP)\s*(?P<number>\d{1,5})\s*(?P<part>\(\s*(?:Part|Section)\s*\d+\s*\))?\s*(?P<year>[:_]\s*\d{4})?",
+    r"\b(?P<prefix>IS|SP)\s*(?P<number>\d{1,5})\s*"
+    r"(?P<part>\(\s*(?:Part|Section)\s+\d+"
+    r"(?:\s*/\s*(?:Sec(?:tion)?|Part)\s*\d+)?"
+    r"(?:\s+(?:to|and)\s+\d+)?\s*\))?\s*"
+    r"(?P<year>[:_]\s*\d{4})?",
     re.IGNORECASE,
 )
 
@@ -33,4 +37,14 @@ def normalize_standard_number(value: str) -> str | None:
         year_val = re.sub(r"^[:_]\s*", "", year).strip()
         result += f":{year_val}"
     return result
+
+
+def find_standard_references(value: str) -> tuple[str, ...]:
+    """Return unique, normalized IS/SP references explicitly present in text."""
+    references: list[str] = []
+    for match in _STANDARD_RE.finditer(normalize_text(value)):
+        reference = normalize_standard_number(match.group(0))
+        if reference and reference not in references:
+            references.append(reference)
+    return tuple(references)
 

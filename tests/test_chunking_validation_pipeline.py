@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pymupdf
+import pytest
 
 from corpus import CorpusBuilder
 from corpus.chunking import ChunkingConfig, DocumentChunker
 from corpus.models import DocumentChunk, Section, SectionFragment, StandardDocument, StandardMetadata, StandardRelationship
+from corpus.processing.normalizer import find_standard_references, normalize_standard_number
 from corpus.validation import CorpusValidator
 
 
@@ -47,7 +50,13 @@ def test_pipeline_serializes_json_and_jsonl_deterministically(tmp_path) -> None:
     assert payload["chunks"]
     rows = [json.loads(line) for line in chunks.read_text(encoding="utf-8").splitlines()]
     assert rows == [
-        {key: getattr(chunk, key) for key in ("chunk_id", "standard_number", "source_file", "page_start", "page_end", "section_number", "section_title", "text")}
+        {
+            **{
+                key: getattr(chunk, key)
+                for key in ("chunk_id", "standard_number", "source_file", "page_start", "page_end", "section_number", "section_title", "text")
+            },
+            "referenced_standards": list(chunk.referenced_standards),
+        }
         for chunk in document.chunks
     ]
 
@@ -68,3 +77,57 @@ def test_pipeline_processes_a_page_preserving_pdf_end_to_end(tmp_path) -> None:
     assert document.metadata.standard_number == "IS 2645:2003"
     assert {chunk.page_start for chunk in document.chunks} == {1, 2}
     assert any(item.relationship_type == "references" for item in document.relationships)
+
+
+def test_standard_reference_normalization_preserves_year_and_part_details() -> None:
+    assert normalize_standard_number("IS 1641 : 2013") == "IS 1641:2013"
+    assert normalize_standard_number("IS 875 (Part 3):2015") == "IS 875 (Part 3):2015"
+    assert normalize_standard_number("IS 302 (Part 2/Sec 201)") == "IS 302 (Part 2/Sec 201)"
+    assert find_standard_references("IS 1641 : 2013 and IS 875 (Part 3):2015") == (
+        "IS 1641:2013",
+        "IS 875 (Part 3):2015",
+    )
+
+
+def test_chunk_keeps_standard_title_context_and_exact_page_fragment() -> None:
+    sections = (
+        Section(
+            None,
+            "Document preamble",
+            0,
+            1,
+            2,
+            "IS 12444:2020\nCopper wire rods for electrical applications\nSpecification",
+            (
+                SectionFragment(1, "IS 12444:2020\nCopper wire rods for electrical applications\nSpecification"),
+                SectionFragment(2, "A separate second-page context."),
+            ),
+        ),
+    )
+    chunks = DocumentChunker(ChunkingConfig(max_chars=200, overlap_chars=0)).chunk(sections, None, "truth.pdf")
+    first = chunks[0]
+    assert first.page_start == first.page_end == 1
+    assert "IS 12444:2020" in first.text
+    assert "Copper wire rods for electrical applications" in first.text
+    assert first.referenced_standards == ("IS 12444:2020",)
+
+
+@pytest.mark.skipif(
+    not (Path(__file__).resolve().parents[2] / "truth").is_dir(),
+    reason="external truth PDF directory is not available",
+)
+def test_truth_pdfs_ingest_with_page_and_source_provenance() -> None:
+    truth = Path(__file__).resolve().parents[2] / "truth"
+    sources = sorted(truth.glob("*.pdf"))
+    assert [source.name for source in sources] == [
+        "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+        "List-of-Products-Under-Simplified-Procedure.pdf",
+        "temp_2131689472.pdf",
+        "temp_2131689475.pdf",
+    ]
+    for source in sources:
+        document = CorpusBuilder().build(source)
+        assert document.pages
+        assert document.chunks
+        assert all(chunk.source_file == source.name for chunk in document.chunks)
+        assert all(1 <= chunk.page_start <= chunk.page_end <= len(document.pages) for chunk in document.chunks)

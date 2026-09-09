@@ -162,6 +162,7 @@ class DocumentChunk:
     # Kept out of the stable JSONL projection so existing retrieval indexes can
     # read both old and new artifacts. Canonical JSON retains these links.
     element_ids: tuple[str, ...] = ()
+    referenced_standards: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

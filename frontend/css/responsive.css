@@ -27,6 +27,10 @@
     padding-left: calc(40px + 1.85rem);
   }
 
+  .standard-record-card .record-reasoning-panel {
+    grid-template-columns: 1fr;
+  }
+
   .record-warning-banner {
     padding-left: calc(40px + 1.85rem);
   }

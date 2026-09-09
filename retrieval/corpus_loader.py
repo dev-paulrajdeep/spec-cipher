@@ -106,6 +106,12 @@ class CorpusChunkLoader:
             or any(not isinstance(value, str) or not value.strip() for value in element_ids)
         ):
             raise CorpusChunkLoadError(f"{location}.element_ids must be a list of non-empty strings")
+        referenced_standards = row.get("referenced_standards", [])
+        if (
+            not isinstance(referenced_standards, list)
+            or any(not isinstance(value, str) or not value.strip() for value in referenced_standards)
+        ):
+            raise CorpusChunkLoadError(f"{location}.referenced_standards must be a list of non-empty strings")
         return DocumentChunk(
             chunk_id=row["chunk_id"],
             standard_number=row["standard_number"],
@@ -116,6 +122,7 @@ class CorpusChunkLoader:
             section_title=row["section_title"],
             text=row["text"],
             element_ids=tuple(element_ids),
+            referenced_standards=tuple(referenced_standards),
         )
 
     @staticmethod

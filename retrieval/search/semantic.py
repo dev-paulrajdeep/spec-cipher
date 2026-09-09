@@ -31,7 +31,8 @@ class SemanticRetriever:
     ) -> None:
         if default_top_k < 1:
             raise ValueError("default_top_k must be positive")
-        if index.dimension != encoder.dimension:
+        encoder_dimension = getattr(encoder, "configured_dimension", None) or encoder.dimension
+        if index.dimension != encoder_dimension:
             raise ValueError("Embedding encoder dimension does not match the FAISS index")
         if not encoder.normalize_embeddings:
             raise ValueError("SemanticRetriever requires normalized embeddings for cosine similarity")
