@@ -27,10 +27,29 @@ class Recommendation:
 
     def to_dict(self) -> dict[str, Any]:
         """Return the complete recommendation and its source-backed details."""
+        primary_evidence = self.evidence[0] if self.evidence else None
         return {
+            "is_code": self.standard_number,
             "standard_number": self.standard_number,
             "title": self.title,
             "final_score": self.final_score,
+            "score": self.final_score,
+            "reason": (
+                f"Retrieved evidence from {primary_evidence.source_file}, "
+                f"page {primary_evidence.page_start}."
+                if primary_evidence
+                else "Recommendation is supported by retrieved source evidence."
+            ),
+            "source": (
+                {
+                    "source_file": primary_evidence.source_file,
+                    "page_start": primary_evidence.page_start,
+                    "page_end": primary_evidence.page_end,
+                    "chunk_id": primary_evidence.chunk_id,
+                }
+                if primary_evidence
+                else None
+            ),
             "rank": self.rank,
             "status": self.status,
             "version": self.version,

@@ -48,6 +48,9 @@ knowledge_base = (
 intelligence = IntelligenceEngine(knowledge_base=knowledge_base)
 qwen_reasoner = QwenReasoner()
 
+RETRIEVAL_CANDIDATE_K = 30
+FINAL_TOP_K = 5
+
 
 
 # --------------------------------------------------
@@ -96,9 +99,11 @@ def analyse_input():
         # re-entrant lifecycle lock so another request cannot load BGE models
         # while Ollama is generating an explanation for this request.
         with retriever._search_lock:
-            results = retriever.search(user_input, top_k=5)
+            results = retriever.search(user_input, top_k=RETRIEVAL_CANDIDATE_K)
             run = intelligence.recommend(user_input, results)
-            recommendations = _serialize_recommendations(user_input, run.recommendations)
+            recommendations = _serialize_recommendations(
+                user_input, run.recommendations[:FINAL_TOP_K]
+            )
 
     # handling the 4 errors specifically asked     
     except ValueError as error:

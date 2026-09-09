@@ -34,6 +34,8 @@ class IntelligenceConfig:
     applicability_weights: ApplicabilityWeights = ApplicabilityWeights()
     evidence_limit: int = 3
     relationship_depth: int = 1
+    final_top_k: int = 5
+    minimum_final_score: float = 0.20
     enable_optional_llm_interpreter: bool = False
 
     def __post_init__(self) -> None:
@@ -43,6 +45,10 @@ class IntelligenceConfig:
             raise ValueError("cross_encoder_model is required when reranker is cross_encoder")
         if self.cross_encoder_batch_size < 1 or self.evidence_limit < 1 or self.relationship_depth < 0:
             raise ValueError("Batch size, evidence limit, and relationship depth must be valid")
+        if self.final_top_k < 1:
+            raise ValueError("final_top_k must be positive")
+        if not 0 <= self.minimum_final_score <= 1:
+            raise ValueError("minimum_final_score must be between zero and one")
         if not 0 <= self.final_rerank_weight <= 1:
             raise ValueError("final_rerank_weight must be between zero and one")
         if not 0 <= self.minimum_applicability <= 1:

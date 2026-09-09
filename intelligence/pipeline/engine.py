@@ -14,6 +14,7 @@ from intelligence.instrumentation import PipelineMetrics
 from intelligence.models import Recommendation, ScoredCandidate
 from intelligence.relationships import CorpusKnowledgeBase
 from intelligence.reranking import CrossEncoderReranker, Reranker, TokenOverlapReranker
+from intelligence.standards import canonical_is_code
 from retrieval.models import RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -129,21 +130,22 @@ class IntelligenceEngine:
     def _recommendations(self, candidates: tuple[ScoredCandidate, ...], metrics: PipelineMetrics) -> tuple[Recommendation, ...]:
         eligible = [
             item for item in candidates
-            if item.candidate.chunk.standard_number
+            if canonical_is_code(item.candidate.chunk.standard_number)
             and item.applicability
             and item.applicability.overall >= self.config.minimum_applicability
             and item.rerank_result
             and item.final_score is not None
+            and item.final_score >= self.config.minimum_final_score
         ]
         groups: OrderedDict[str, list[ScoredCandidate]] = OrderedDict()
         for item in eligible:
-            standard = item.candidate.chunk.standard_number
+            standard = canonical_is_code(item.candidate.chunk.standard_number)
             if standard:
                 groups.setdefault(standard, []).append(item)
         ranked_groups = sorted(
             groups.items(),
             key=lambda entry: (-max(item.final_score or 0.0 for item in entry[1]), entry[0]),
-        )
+        )[: self.config.final_top_k]
         relationship_started = perf_counter()
         related_by_standard: dict[str, tuple] = {}
         relationship_warnings: dict[str, tuple[str, ...]] = {}
@@ -164,7 +166,7 @@ class IntelligenceEngine:
                 group,
                 key=lambda item: (-(item.final_score or 0.0), item.candidate.rank, item.candidate.chunk.chunk_id),
             )[0]
-            context = self.knowledge_base.context_for(primary.candidate.chunk.standard_number)
+            context = self.knowledge_base.context_for(standard)
             evidence = self.evidence_locator.select(tuple(group), self.config.evidence_limit)
             output.append(Recommendation(
                 standard_number=standard,

@@ -25,6 +25,8 @@ class ResultsManager {
         this.currentRecommendations =
             Array.isArray(response?.recommendations)
                 ? response.recommendations
+                    .filter((recommendation) => recommendation?.is_code || recommendation?.standard_number)
+                    .slice(0, 5)
                 : [];
 
         /*
@@ -241,7 +243,7 @@ class ResultsManager {
 
         if (countText) {
             countText.textContent =
-                `${items.length} retrieved match${items.length === 1 ? '' : 'es'}`;
+                `${items.length} recommendation${items.length === 1 ? '' : 's'}`;
         }
 
         if (items.length === 0) {
@@ -285,6 +287,7 @@ class ResultsManager {
             index + 1;
 
         const standardNumber =
+            standard?.is_code ||
             standard?.standard_number ||
             'Indian Standard not identified';
 

@@ -26,16 +26,17 @@ class MetadataExtractor:
 
     def extract(self, pages: tuple[CorpusPage, ...], source_file: str) -> StandardMetadata:
         leading_text = "\n".join(page.cleaned_text for page in pages[:3])
-        standard_number = self._parser.parse(leading_text)
+        standard_number = self._parser.parse(leading_text) or self._parser.parse(source_file)
         title = self._title_from_leading_pages(pages, standard_number)
         edition = self._first_group(_EDITION_RE, leading_text)
         revisions = _REVISION_RE.findall(leading_text)
         revision = revisions[-1] if revisions else None
         status = self._first_group(_STATUS_RE, leading_text)
+        year = self._parser.year_from(leading_text) or self._parser.year_from(source_file)
         return StandardMetadata(
             standard_number=standard_number,
             title=title,
-            year=self._parser.year_from(leading_text),
+            year=year,
             edition=edition.title() if edition else None,
             revision=revision.title() if revision else None,
             status=status.lower() if status else None,

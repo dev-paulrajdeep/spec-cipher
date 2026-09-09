@@ -97,6 +97,23 @@ def test_loader_reads_canonical_json_and_jsonl(tmp_path, chunks) -> None:
     assert CorpusChunkLoader().load(jsonl).chunks == chunks
 
 
+def test_loader_recovers_parent_standard_number_for_canonical_chunks(tmp_path) -> None:
+    artifact = tmp_path / "standard.json"
+    artifact.write_text(json.dumps({
+        "schema_version": "1.0",
+        "metadata": {"standard_number": "IS 456:2000"},
+        "chunks": [{
+            "chunk_id": "chunk-1", "standard_number": None, "source_file": "is456.pdf",
+            "page_start": 1, "page_end": 1, "section_number": "1", "section_title": "Scope",
+            "text": "concrete requirements",
+        }],
+    }), encoding="utf-8")
+
+    loaded = CorpusChunkLoader().load(artifact)
+
+    assert loaded.chunks[0].standard_number == "IS 456:2000"
+
+
 def test_loader_rejects_malformed_and_duplicate_chunks(tmp_path, chunks) -> None:
     malformed = tmp_path / "bad.jsonl"
     row = chunk_row(chunks[0])
@@ -113,10 +130,23 @@ def test_loader_rejects_malformed_and_duplicate_chunks(tmp_path, chunks) -> None
 def test_loader_preserves_unknown_standard_identifier(tmp_path, chunks) -> None:
     unknown_standard = chunk_row(chunks[0])
     unknown_standard["standard_number"] = None
+    unknown_standard["source_file"] = "special-publication.pdf"
     artifact = tmp_path / "special-publication.jsonl"
     artifact.write_text(json.dumps(unknown_standard), encoding="utf-8")
     loaded = CorpusChunkLoader().load(artifact)
     assert loaded.chunks[0].standard_number is None
+
+
+def test_loader_recovers_source_filename_identity_without_converting_sp_to_is(tmp_path, chunks) -> None:
+    row = chunk_row(chunks[0])
+    row["standard_number"] = None
+    row["source_file"] = "SP 7_2026.pdf"
+    artifact = tmp_path / "special-publication.jsonl"
+    artifact.write_text(json.dumps(row), encoding="utf-8")
+
+    loaded = CorpusChunkLoader().load(artifact)
+
+    assert loaded.chunks[0].standard_number == "SP 7:2026"
 
 
 def test_loader_preserves_optional_element_provenance(tmp_path, chunks) -> None:

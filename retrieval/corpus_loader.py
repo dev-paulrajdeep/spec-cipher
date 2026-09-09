@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from corpus.models import DocumentChunk
+from corpus.processing.normalizer import normalize_standard_number
 
 
 class CorpusChunkLoadError(ValueError):
@@ -77,6 +78,26 @@ class CorpusChunkLoader:
         rows = payload["chunks"]
         if not all(isinstance(row, dict) for row in rows):
             raise CorpusChunkLoadError("Canonical JSON chunks must all be objects")
+        metadata = payload.get("metadata")
+        parent_standard_number = metadata.get("standard_number") if isinstance(metadata, dict) else None
+        if not parent_standard_number and isinstance(metadata, dict):
+            parent_standard_number = normalize_standard_number(str(metadata.get("source_file", "")))
+        if parent_standard_number is not None and (
+            not isinstance(parent_standard_number, str) or not parent_standard_number.strip()
+        ):
+            raise CorpusChunkLoadError("Canonical metadata.standard_number must be a non-empty string or null")
+        if parent_standard_number:
+            rows = [
+                {
+                    **row,
+                    "standard_number": (
+                        row.get("standard_number")
+                        if row.get("standard_number") is not None
+                        else parent_standard_number
+                    ),
+                }
+                for row in rows
+            ]
         return rows, schema_version
 
     @staticmethod
@@ -106,9 +127,10 @@ class CorpusChunkLoader:
             or any(not isinstance(value, str) or not value.strip() for value in element_ids)
         ):
             raise CorpusChunkLoadError(f"{location}.element_ids must be a list of non-empty strings")
+        standard_number = row["standard_number"] or normalize_standard_number(row["source_file"])
         return DocumentChunk(
             chunk_id=row["chunk_id"],
-            standard_number=row["standard_number"],
+            standard_number=standard_number,
             source_file=row["source_file"],
             page_start=row["page_start"],
             page_end=row["page_end"],

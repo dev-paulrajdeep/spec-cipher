@@ -6,7 +6,8 @@ import pymupdf
 
 from corpus import CorpusBuilder
 from corpus.chunking import ChunkingConfig, DocumentChunker
-from corpus.models import DocumentChunk, Section, SectionFragment, StandardDocument, StandardMetadata, StandardRelationship
+from corpus.models import CorpusPage, DocumentChunk, Section, SectionFragment, StandardDocument, StandardMetadata, StandardRelationship
+from corpus.metadata import MetadataExtractor
 from corpus.validation import CorpusValidator
 
 
@@ -68,3 +69,9 @@ def test_pipeline_processes_a_page_preserving_pdf_end_to_end(tmp_path) -> None:
     assert document.metadata.standard_number == "IS 2645:2003"
     assert {chunk.page_start for chunk in document.chunks} == {1, 2}
     assert any(item.relationship_type == "references" for item in document.relationships)
+
+
+def test_metadata_recovers_structured_source_identity_without_inventing_is_code() -> None:
+    pages = (CorpusPage(1, "content without an identifier", "content without an identifier"),)
+    metadata = MetadataExtractor().extract(pages, "SP 7_2026.pdf")
+    assert metadata.standard_number == "SP 7:2026"

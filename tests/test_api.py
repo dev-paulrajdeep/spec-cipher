@@ -131,7 +131,7 @@ def test_endpoint_adds_explanation_without_changing_recommendation_fields(
     assert stable_recommendation_fields(payload) == stable_recommendation_fields(source.to_dict())
     assert payload["warnings"] == source.to_dict()["warnings"]
     assert payload["explanation"] == explanation
-    assert retriever.calls == [("waterproofing compound for concrete", 5)]
+    assert retriever.calls == [("waterproofing compound for concrete", 30)]
     assert reasoner.calls == [("waterproofing compound for concrete", source)]
 
 
@@ -167,4 +167,15 @@ def test_empty_recommendations_do_not_invoke_qwen(monkeypatch: pytest.MonkeyPatc
         "No suitable standard was found for this requirement."
     ]
     assert reasoner.calls == []
+
+
+def test_endpoint_caps_final_recommendations(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = recommendation()
+    module, _ = load_app(monkeypatch, tuple(source for _ in range(7)))
+    module.qwen_reasoner = FakeReasoner(ExplanationOutcome(None))
+
+    response = module.app.test_client().post("/get_result", json={"user_input": "waterproofing"})
+
+    assert response.status_code == 200
+    assert len(response.get_json()["recommendations"]) == 5
 
