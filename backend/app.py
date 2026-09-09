@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory, request, jsonify
+import atexit
 import os
 import sys
 import logging
@@ -28,8 +29,11 @@ FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
 RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
 retriever = RetrievalService.from_persisted(
     RETRIEVAL_INDEX_DIR,
-    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=True),
+    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=False),
 )
+close_retriever = getattr(retriever, "close", None)
+if callable(close_retriever):
+    atexit.register(close_retriever)
 
 CANONICAL_CORPUS_PATHS = (
     PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.json",
@@ -197,4 +201,9 @@ def _serialize_recommendations(user_input, recommendations):
 # --------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.getenv("SPEC_CIPHER_HOST", "127.0.0.1"),
+        port=int(os.getenv("SPEC_CIPHER_PORT", "5000")),
+        debug=False,
+        use_reloader=False,
+    )

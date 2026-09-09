@@ -5,7 +5,7 @@ const CONFIG = {
         ANALYZE: '/get_result'
     },
 
-    TIMEOUT_MS: 45000
+    TIMEOUT_MS: 120000
 };
 
 window.CONFIG = CONFIG;

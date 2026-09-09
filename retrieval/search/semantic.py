@@ -75,6 +75,12 @@ class SemanticRetriever:
         logger.info("Semantic query completed: candidates=%d duration_ms=%.2f", len(results), (perf_counter() - started) * 1000)
         return results
 
+    def close(self) -> None:
+        """Release lazily loaded model resources when the worker shuts down."""
+        if hasattr(self._encoder, "release"):
+            self._encoder.release()
+        if self._reranker is not None and hasattr(self._reranker, "release"):
+            self._reranker.release()
 
     def search_candidates(self, query: str, top_k: int | None = None) -> tuple[StandardCandidate, ...]:
         """Provide a standard grouping while retaining every returned chunk as evidence."""

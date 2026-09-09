@@ -21,7 +21,8 @@ DEFAULT_QWEN_TIMEOUT_SECONDS = 30.0
 MAX_PROJECTION_CHARACTERS = 7_500
 MAX_USER_INPUT_CHARACTERS = 1_000
 MAX_EVIDENCE_TEXT_CHARACTERS = 500
-MAX_RELATIONSHIP_EVIDENCE_CHARACTERS = 500
+MAX_RELATIONSHIP_EVIDENCE_CHARACTERS = 250
+MAX_RELATED_STANDARDS = 8
 _TRUNCATION_SUFFIX = "... [truncated]"
 
 SYSTEM_INSTRUCTION = """You are the explanation layer of SpecCipher.
@@ -148,7 +149,7 @@ class QwenReasoner:
                     ),
                     "depth": item["depth"],
                 }
-                for item in serialized["related_standards"]
+                for item in serialized["related_standards"][:MAX_RELATED_STANDARDS]
             ],
         }
         _bound_evidence_text(projection)

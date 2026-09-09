@@ -312,6 +312,43 @@ provenance-complete evidence, and traverse stated relationships. It produces
 explainable recommendations, not API responses or opaque LLM decisions. See
 [INTELLIGENCE.md](INTELLIGENCE.md) for the contract and scoring semantics.
 
+## Browser E2E acceptance test
+
+The reproducible browser acceptance script is `scripts/e2e_smoke.py`. It
+starts the real Flask entrypoint (`backend/app.py`), serves the existing
+frontend, launches installed Chromium through Playwright, and drives the
+actual query form with:
+
+```text
+fire safety requirements for residential buildings
+```
+
+Prerequisites are the project Python environment, the persisted
+`retrieval-index/` bundle, Ollama with `qwen3-4b-thinking:latest` (or the
+model named by `QWEN_MODEL_NAME`), and Playwright's installed Chromium.
+Run it from the repository root:
+
+```powershell
+python scripts/e2e_smoke.py
+```
+
+The script polls the served HTML before opening Chromium, verifies the real
+`/get_result` response against the rendered recommendation page, captures a
+successful screenshot, then repeats the browser flow with an invalid Ollama
+endpoint to verify fail-open explanation behavior and with a no-result query
+to verify that Qwen is not invoked. It writes `summary.json`, backend logs,
+and `successful-result.png` under `.tmp/e2e_smoke/`.
+
+PASS requires the successful explanation flow plus the browser-visible
+failure-isolation and no-result flows. Missing prerequisites, startup or HTTP
+errors, absent rendered fields, recommendation mutation, or cleanup failures
+exit non-zero. The script terminates only backend processes it starts;
+Ollama is not started or stopped by the script, and Qwen requests use the
+application's existing `keep_alive=0` contract.
+
+Expected runtime depends primarily on BGE model loading and Ollama response
+latency and is commonly several minutes on a cold local environment.
+
 ------------------------------------------------------------------------
 
 ## AI / Retrieval Workflow

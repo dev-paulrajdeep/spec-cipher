@@ -22,6 +22,7 @@ from backend.qwen_reasoning import (
     EXPLANATION_FORMAT,
     MAX_EVIDENCE_TEXT_CHARACTERS,
     MAX_PROJECTION_CHARACTERS,
+    MAX_RELATED_STANDARDS,
     QwenConfig,
     QwenReasoner,
     SYSTEM_INSTRUCTION,
@@ -47,6 +48,7 @@ def recommendation(
     status: str | None = "current",
     evidence_text: str = "Direct source wording.",
     evidence: tuple[EvidenceItem, ...] | None = None,
+    related_standards: tuple[RelatedStandard, ...] | None = None,
 ) -> Recommendation:
     return Recommendation(
         standard_number="IS 2645:2003",
@@ -69,7 +71,7 @@ def recommendation(
                 0.82,
             ),
         ),
-        related_standards=(
+        related_standards=related_standards if related_standards is not None else (
             RelatedStandard(
                 "IS 3370 (Part 1):2021",
                 "references",
@@ -200,6 +202,28 @@ def test_projection_bounds_combined_evidence_budget() -> None:
     serialized = json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     assert len(serialized) <= MAX_PROJECTION_CHARACTERS
     assert len(projection["evidence"][0]["text"]) < MAX_EVIDENCE_TEXT_CHARACTERS
+
+
+def test_projection_bounds_large_relationship_graph() -> None:
+    related = tuple(
+        RelatedStandard(
+            f"IS {index}:2026",
+            "references",
+            "SP 7:2026",
+            index,
+            "relationship evidence " * 100,
+            1,
+        )
+        for index in range(MAX_RELATED_STANDARDS + 100)
+    )
+
+    projection = QwenReasoner(config=QwenConfig("http://ollama.test", "model", 3)).project_recommendation(
+        "requirement",
+        recommendation(related_standards=related),
+    )
+
+    assert len(projection["related_standards"]) == MAX_RELATED_STANDARDS
+    assert len(json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":"))) <= MAX_PROJECTION_CHARACTERS
 
 
 def test_request_uses_configured_ollama_schema_keep_alive_and_final_content_only() -> None:
