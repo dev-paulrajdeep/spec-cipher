@@ -70,7 +70,14 @@ class ResultsManager {
          * Show backend warnings
          */
         this.renderWarnings(
-            response?.warnings
+            [
+                ...(Array.isArray(response?.warnings) ? response.warnings : []),
+                ...this.currentRecommendations.flatMap((recommendation) =>
+                    Array.isArray(recommendation?.warnings)
+                        ? recommendation.warnings
+                        : []
+                )
+            ]
         );
 
         /*
@@ -292,26 +299,35 @@ class ResultsManager {
 
         const sectionTitle =
             standard?.section_title ||
+            standard?.evidence?.[0]?.section_title ||
             'Section not available';
 
         const text =
             standard?.text ||
+            standard?.evidence?.[0]?.text ||
             'No retrieved text available.';
 
         const score =
             this.formatScore(
-                standard?.score
+                standard?.score ??
+                standard?.final_score
             );
+
+        const evidence =
+            standard?.evidence?.[0] || {};
 
         const sourceFile =
             standard?.source?.source_file ||
+            evidence.source_file ||
             'Source unavailable';
 
         const pageStart =
-            standard?.source?.page_start;
+            standard?.source?.page_start ??
+            evidence.page_start;
 
         const pageEnd =
-            standard?.source?.page_end;
+            standard?.source?.page_end ??
+            evidence.page_end;
 
         const pages =
             this.formatPages(
@@ -321,6 +337,60 @@ class ResultsManager {
 
         const preview =
             this.createPreview(text);
+
+        const explanation =
+            standard?.explanation;
+
+        const relatedStandards =
+            Array.isArray(standard?.related_standards)
+                ? standard.related_standards
+                : [];
+
+        const explanationMarkup =
+            explanation && typeof explanation === 'object'
+                ? `
+                    <div data-testid="recommendation-explanation">
+                        <div class="reason-box-title">
+                            Explanation
+                        </div>
+
+                        <div style="color:var(--text-secondary); line-height:1.55;">
+                            ${window.ui.escapeHtml(explanation.summary || '')}
+                        </div>
+
+                        ${Array.isArray(explanation.key_points) && explanation.key_points.length > 0 ? `
+                            <ul class="reason-bullets">
+                                ${explanation.key_points.map((point) => `<li>${window.ui.escapeHtml(point)}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+
+                        ${Array.isArray(explanation.caveats) && explanation.caveats.length > 0 ? `
+                            <div data-testid="recommendation-caveats">
+                                <div class="reason-box-title">
+                                    Caveats
+                                </div>
+                                <ul class="reason-bullets">
+                                    ${explanation.caveats.map((caveat) => `<li>${window.ui.escapeHtml(caveat)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+                `
+                : '';
+
+        const relatedMarkup =
+            relatedStandards.length > 0
+                ? `
+                    <div data-testid="related-standards">
+                        <div class="reason-box-title">
+                            Related standards
+                        </div>
+                        <ul class="reason-bullets">
+                            ${relatedStandards.map((related) => `<li>${window.ui.escapeHtml(related.standard_number || 'Related standard')}</li>`).join('')}
+                        </ul>
+                    </div>
+                `
+                : '';
 
         card.innerHTML = `
             <div class="record-main-row">
@@ -438,6 +508,10 @@ class ResultsManager {
                     </div>
 
                 </div>
+
+                ${explanationMarkup}
+
+                ${relatedMarkup}
 
             </div>
         `;

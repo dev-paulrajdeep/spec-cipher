@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory, request, jsonify
+import atexit
 import os
 import sys
 import logging
@@ -11,6 +12,7 @@ from retrieval.indexing import IndexCompatibilityError
 from retrieval.config import RetrievalConfig
 from intelligence.pipeline import IntelligenceEngine
 from intelligence.relationships import CorpusKnowledgeBase
+from backend.qwen_reasoning import QwenReasoner
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -27,8 +29,11 @@ FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
 RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
 retriever = RetrievalService.from_persisted(
     RETRIEVAL_INDEX_DIR,
-    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=True),
+    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=False),
 )
+close_retriever = getattr(retriever, "close", None)
+if callable(close_retriever):
+    atexit.register(close_retriever)
 
 CANONICAL_CORPUS_PATHS = (
     PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.json",
@@ -41,6 +46,7 @@ knowledge_base = (
     else CorpusKnowledgeBase()
 )
 intelligence = IntelligenceEngine(knowledge_base=knowledge_base)
+qwen_reasoner = QwenReasoner()
 
 
 
@@ -86,8 +92,13 @@ def analyse_input():
     logging.debug(f"user_input: {user_input}")
 
     try:
-        results = retriever.search(user_input, top_k=5)
-        run = intelligence.recommend(user_input, results)
+        # Flask's development server is threaded. Reuse RetrievalService's
+        # re-entrant lifecycle lock so another request cannot load BGE models
+        # while Ollama is generating an explanation for this request.
+        with retriever._search_lock:
+            results = retriever.search(user_input, top_k=5)
+            run = intelligence.recommend(user_input, results)
+            recommendations = _serialize_recommendations(user_input, run.recommendations)
 
     # handling the 4 errors specifically asked     
     except ValueError as error:
@@ -137,7 +148,7 @@ def analyse_input():
     return jsonify({
         "status": "success",
         "user_input": user_input,
-        "recommendations": [recommendation.to_dict() for recommendation in run.recommendations],
+        "recommendations": recommendations,
         "warnings": [] if run.recommendations else [
             "No suitable standard was found for this requirement."
         ],
@@ -173,9 +184,26 @@ def analyse_input():
     '''
 
 
+def _serialize_recommendations(user_input, recommendations):
+    """Attach optional Qwen explanations without mutating Recommendations."""
+    payloads = []
+    for recommendation in recommendations:
+        payload = recommendation.to_dict()
+        outcome = qwen_reasoner.explain(user_input, recommendation)
+        payload["explanation"] = outcome.explanation
+        if outcome.warning:
+            payload["warnings"].append(outcome.warning)
+        payloads.append(payload)
+    return payloads
+
 # --------------------------------------------------
 # Run Flask
 # --------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host=os.getenv("SPEC_CIPHER_HOST", "127.0.0.1"),
+        port=int(os.getenv("SPEC_CIPHER_PORT", "5000")),
+        debug=False,
+        use_reloader=False,
+    )

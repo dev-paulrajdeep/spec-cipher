@@ -61,3 +61,9 @@ class RetrievalService:
                     "Retrieval service is not loaded; call load() or from_persisted() first"
                 )
             return self._retriever.search(query, top_k=top_k)
+
+    def close(self) -> None:
+        """Release model resources held by this worker."""
+        with self._search_lock:
+            if self._retriever is not None:
+                self._retriever.close()
