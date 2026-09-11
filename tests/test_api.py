@@ -218,3 +218,36 @@ def test_endpoint_rejects_oversized_requirement(monkeypatch: pytest.MonkeyPatch)
     assert response.status_code == 400
     assert response.get_json()["result_state"] == "invalid_request"
 
+
+def test_http_errors_use_the_public_json_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, _ = load_app(monkeypatch, ())
+    client = module.app.test_client()
+
+    not_found = client.get("/does-not-exist")
+    assert not_found.status_code == 404
+    assert not_found.get_json() == {
+        "status": "error",
+        "result_state": "invalid_request",
+        "message": "The requested endpoint was not found.",
+    }
+
+    wrong_method = client.get("/get_result")
+    assert wrong_method.status_code == 405
+    assert wrong_method.get_json()["result_state"] == "invalid_request"
+
+
+def test_unexpected_http_errors_are_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, _ = load_app(monkeypatch, ())
+
+    @module.app.get("/_test-unexpected-error")
+    def _unexpected_error_route():
+        raise RuntimeError("secret filesystem path should not escape")
+
+    response = module.app.test_client().get("/_test-unexpected-error")
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "status": "error",
+        "result_state": "internal_error",
+        "message": "The analysis service encountered an internal error.",
+    }
+

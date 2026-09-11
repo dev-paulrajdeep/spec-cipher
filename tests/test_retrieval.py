@@ -220,6 +220,10 @@ def test_public_service_contract_hides_index_and_serializes_provenance(tmp_path,
     with pytest.raises(RetrievalUnavailableError, match="not loaded"):
         service.search("waterproofing compound for concrete")
     service.load(tmp_path / "index")
+    readiness = service.readiness()
+    assert readiness["ready"] is True
+    assert readiness["chunk_count"] == len(chunks)
+    assert readiness["standard_count"] == 2
 
     results = service.search("waterproofing compound for concrete", top_k=2)
     assert len(results) == 2

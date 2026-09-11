@@ -9,7 +9,7 @@
 > multi-standard coverage. Its original PDF is absent; provenance is carried
 > from `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json`.
 
-## Run the verified MVP
+## Run the current MVP
 
 Use Python 3.11+ and a project-local virtual environment, then install
 `requirements.txt`. Obtain/cache the exact `BAAI/bge-m3` model before offline
@@ -27,7 +27,8 @@ matching index only after changing the canonical corpus:
 For disconnected startup, set `SPEC_CIPHER_HF_OFFLINE=1`; missing cached model
 artifacts cause an actionable startup failure rather than substitution with a
 different model. `GET /health` is ready only after BGE-M3 has loaded. The
-browser uses the same-origin `POST /get_result` API. Qwen/Ollama is optional:
+browser uses the same-origin `POST /get_result` API. Qwen/Ollama is optional
+and is never required for a recommendation:
 its timeout, absence, or invalid reply produces a deterministic,
 evidence-grounded explanation and warning without changing recommendations.
 
@@ -44,6 +45,40 @@ deterministic token-overlap reranking → constraints/applicability →
 recommendation/evidence → optional explanation. Similarity/relevance is not
 applicability, confidence, or compliance. Run the maintained suite with
 `python -m pytest tests`; do not use bare `pytest` from repository root.
+
+### Current capability and boundary
+
+The serving bundle contains exactly one independently indexed standard and one
+chunk: `IS 5120`. The corpus text mentions other IS codes as related source
+content, but those codes are not independently indexed and cannot become
+recommendations. The original source PDF is absent, so the canonical extracted
+JSON is the available provenance artifact; page numbers refer to that
+extraction, not to an independently auditable PDF in this repository.
+
+This is a truthful evidence-first MVP. Scaling to broader coverage requires
+independently sourced and indexed standards, their source artifacts, a rebuilt
+fingerprinted bundle, and evaluation data. No multi-standard or BIS-wide
+coverage should be inferred from the current demo.
+
+### Judge demo procedure
+
+1. Activate the project environment and run `scripts/preflight.py`.
+2. Start `backend/app.py` once, then verify `GET /health` returns HTTP 200 and
+   `"status":"ready"`.
+3. Open `http://127.0.0.1:5000/` and submit
+   `general-purpose centrifugal pumps for industrial water service`.
+4. Show the `IS 5120` recommendation, relevance and applicability scores,
+   extracted evidence, source filename/page/chunk, and the explanation warning
+   if Ollama is unavailable.
+5. Repeat with `fire safety requirements for a commercial building` to show
+   the honest no-match state; it must not invent a fire-safety standard.
+6. Use `Refine specification` to return to the input, and use the retry path
+   after an API failure or timeout.
+
+The browser acceptance command is `python scripts/e2e_smoke.py`. It starts and
+stops only the backend process it owns, checks `/health`, exercises success,
+optional-Qwen fallback, and no-match states, and writes evidence under
+`.tmp/e2e_smoke/`.
 
 **Smart India Hackathon 2026 --- SIH26108**
 
@@ -358,24 +393,25 @@ explainable recommendations, not API responses or opaque LLM decisions. See
 ## Browser E2E acceptance test
 
 The reproducible browser acceptance script is `scripts/e2e_smoke.py`. It
-starts the real Flask entrypoint (`backend/app.py`), serves the existing
-frontend, launches installed Chromium through Playwright, and drives the
-actual query form with:
+starts the real Flask entrypoint (`backend/app.py`), checks `/health`, serves
+the existing frontend, launches installed Chromium through Playwright, and
+drives the actual query form with:
 
 ```text
-fire safety requirements for residential buildings
+general-purpose centrifugal pumps for industrial water service
 ```
 
 Prerequisites are the project Python environment, the persisted
-`retrieval-index/` bundle, Ollama with `qwen3-4b-thinking:latest` (or the
-model named by `QWEN_MODEL_NAME`), and Playwright's installed Chromium.
+`retrieval-index/` bundle, cached BGE-M3 artifacts, and Playwright's installed
+Chromium. Ollama and Qwen are optional; an unavailable or invalid Ollama
+response is expected to exercise the deterministic explanation fallback.
 Run it from the repository root:
 
 ```powershell
 python scripts/e2e_smoke.py
 ```
 
-The script polls the served HTML before opening Chromium, verifies the real
+The script polls `/health` and the served HTML before opening Chromium, verifies the real
 `/get_result` response against the rendered recommendation page, captures a
 successful screenshot, then repeats the browser flow with an invalid Ollama
 endpoint to verify fail-open explanation behavior and with a no-result query

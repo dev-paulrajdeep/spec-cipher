@@ -88,6 +88,12 @@ def wait_for_ready(base_url: str, timeout: float) -> None:
     last_error = "no response"
     while time.monotonic() < deadline:
         try:
+            health_status, health = http_json(f"{base_url}/health")
+            if health_status != 200 or not isinstance(health, dict) or health.get("status") != "ready":
+                state = health.get("status") if isinstance(health, dict) else "invalid"
+                last_error = f"GET /health returned HTTP {health_status} status={state}"
+                time.sleep(0.25)
+                continue
             status, body = http_text(f"{base_url}/")
             if status == 200 and "spec-analysis-form" in body:
                 return
@@ -105,19 +111,6 @@ def verify_index() -> None:
         raise SmokeFailure(f"Persisted retrieval index is incomplete; missing: {', '.join(missing)}")
 
 
-def verify_ollama(model_name: str, timeout: float = 5.0) -> None:
-    host = os.getenv("QWEN_OLLAMA_HOST", "http://localhost:11434").rstrip("/")
-    try:
-        status, payload = http_json(f"{host}/api/tags", timeout=timeout)
-    except (OSError, URLError, ValueError) as error:
-        raise SmokeFailure(f"Ollama is unavailable at {host}: {error}") from error
-    if status != 200 or not isinstance(payload, dict):
-        raise SmokeFailure(f"Ollama health check failed at {host}: HTTP {status}")
-    models = {item.get("name") for item in payload.get("models", []) if isinstance(item, dict)}
-    if model_name not in models:
-        raise SmokeFailure(f"Required Qwen model {model_name!r} is not installed in Ollama")
-
-
 def verify_prerequisites(model_name: str) -> None:
     if not sys.executable:
         raise SmokeFailure("Python executable is not available")
@@ -130,7 +123,8 @@ def verify_prerequisites(model_name: str) -> None:
         import playwright  # noqa: F401
     except ImportError as error:
         raise SmokeFailure("Playwright is not installed in the active Python environment") from error
-    verify_ollama(model_name)
+    # Ollama is deliberately optional. The browser flow must remain useful
+    # with the deterministic evidence explanation when Qwen is absent.
 
 
 def start_server(host: str, port: int, artifacts_dir: Path, qwen_host: str | None = None) -> StartedServer:

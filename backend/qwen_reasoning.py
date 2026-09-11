@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_QWEN_OLLAMA_HOST = "http://localhost:11434"
 DEFAULT_QWEN_MODEL_NAME = "qwen3-4b-thinking:latest"
-DEFAULT_QWEN_TIMEOUT_SECONDS = 30.0
+# Explanations are optional; keep an unavailable Ollama endpoint from making
+# the primary recommendation journey appear hung.
+DEFAULT_QWEN_TIMEOUT_SECONDS = 5.0
 
 # Qwen's tested context window is 4096 tokens. This conservative character
 # budget leaves room for the grounding instruction and a complete JSON reply.

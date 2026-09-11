@@ -1,5 +1,10 @@
 import torch
+import pytest
 from sentence_transformers import SentenceTransformer
+
+
+if not torch.cuda.is_available():
+    pytest.skip("Optional BGE-M3 GPU smoke test requires CUDA", allow_module_level=True)
 
 print("=" * 60)
 print("GPU CHECK")
@@ -8,9 +13,6 @@ print("=" * 60)
 print("PyTorch:", torch.__version__)
 print("CUDA available:", torch.cuda.is_available())
 print("CUDA:", torch.version.cuda)
-
-if not torch.cuda.is_available():
-    raise RuntimeError("CUDA is not available")
 
 print("GPU:", torch.cuda.get_device_name(0))
 

@@ -51,6 +51,8 @@ class RetrievalService:
         """Load a persisted index bundle after model/configuration validation."""
         self._retriever = self._pipeline.load(directory)
         chunks = getattr(self._retriever, "_chunks", ())
+        if isinstance(chunks, dict):
+            chunks = tuple(chunks.values())
         self._chunk_count = len(chunks)
         self._standard_count = len({
             chunk.standard_number for chunk in chunks if getattr(chunk, "standard_number", None)
@@ -63,7 +65,7 @@ class RetrievalService:
             return {
                 "ready": self._retriever is not None,
                 "embedding_model": encoder.model_name,
-                "embedding_device": encoder.device,
+                "embedding_device": getattr(encoder, "device", "unknown"),
                 "model_loaded": getattr(encoder, "_model", None) is not None,
                 "chunk_count": self._chunk_count,
                 "standard_count": self._standard_count,

@@ -17,14 +17,14 @@ Verified in this checkout:
   fingerprint validation;
 - malformed inputs and persistence artifacts fail predictably;
 - optional corpus element-level provenance is preserved and validated;
-- real SP 7:2026 source-text smoke queries through build, persist, reload, and
-  search.
+- current `IS 5120` corpus/index identity and provenance checks.
 
-The bundled real corpus has 13,077 SP 7:2026 chunks but no evidenced standard
-number for that Special Publication, so `standard_number` is correctly `null`
-for those results. The smoke index used 32 actual source chunks selected for
-three domain queries; it is a qualitative integration check, not a full-corpus
-relevance benchmark.
+The current serving corpus is intentionally smaller: one canonical JSON
+artifact with one independently indexed `IS 5120` chunk. The source text
+mentions other standards, but they are not independently indexed and must not
+be emitted as recommendations. The original source PDF is absent; provenance
+therefore ends at the canonical extracted JSON and its recorded page/chunk
+fields.
 
 ## Architecture
 
@@ -119,29 +119,11 @@ Error behavior:
 
 ## Example Request/Response
 
-The following is an actual rank-1 result from the reloaded 32-chunk SP 7:2026
-source-text smoke index:
-
-```text
-query: "structural concrete design requirements"
-
-{
-  "standard_number": null,
-  "title": null,
-  "section_number": "5.2.1",
-  "section_title": "Concrete",
-  "text": "5.2.1 Concrete\nThe concrete used for construction shall be in accordance with Part C ‘Structural Design/ Section 5 Structural Concrete’ of this NBCS.",
-  "score": 0.666084,
-  "rank": 1,
-  "source": {
-    "chunk_id": "chunk_26f243acbab738462082",
-    "source_file": "SP 7_2026.pdf",
-    "page_start": 412,
-    "page_end": 412,
-    "element_ids": []
-  }
-}
-```
+The current serving bundle contains one independently indexed `IS 5120` chunk.
+Use the live API or the generated `retrieval-index/chunks.json` for the exact
+chunk ID, extracted text, and model-dependent score; this handover does not
+copy a fabricated response or imply coverage of the related codes mentioned
+inside the source text.
 
 The exact score is meaningful only for this model and index configuration; do
 not turn it into an applicability/confidence percentage in Flask.
@@ -181,19 +163,16 @@ binary artifacts. The checked-in build entry point is
 `RetrievalPipeline.build_and_persist()` path and does not create placeholder
 files.
 
-From the repository root, Daksh should run:
+From the repository root, build the current serving bundle with:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\SP 7_2026.chunks.jsonl" --output retrieval-index
+.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json" --output retrieval-index --device cpu --allow-cpu-fallback
 ```
 
 The corpus argument must point to the actual retrieval-ready `.json` or
-`.jsonl` corpus produced by the corpus pipeline. In this checkout the
-available real corpus is `.tmp/sp7_validation/SP 7_2026.chunks.jsonl`; a full
-bundle was built from its 13,077 actual chunks during verification. The `.tmp/`
-copy is validation workspace state and is not a repository prerequisite. A deployment checkout
-must provide the corpus at `corpus/data/SP 7_2026.chunks.jsonl` or pass its
-actual path with `--corpus`.
+`.jsonl` corpus produced by the corpus pipeline. Do not substitute a different
+standard or model without rebuilding and revalidating the fingerprinted
+bundle.
 
 The application loads the bundle once at startup through the public interface:
 
@@ -214,11 +193,11 @@ incompatible results.
 
 Before running Flask, make sure the retrieval index has been generated at
 `retrieval-index/`. If it does not exist, run
-`.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\SP 7_2026.chunks.jsonl" --output retrieval-index`.
+`.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json" --output retrieval-index --device cpu --allow-cpu-fallback`.
 
 ## Configuration
 
-The verified configuration is:
+The current serving configuration is:
 
 | Setting | Value |
 | --- | --- |
@@ -230,43 +209,34 @@ The verified configuration is:
 | Default build batch size | 16 |
 | Corpus inputs | canonical corpus `.json` or chunk `.jsonl` |
 
-The production encoder is `BAAI/bge-m3`, normally used with CUDA on the RTX
-5060. Batch size defaults to 16 to keep VRAM use conservative. CPU use is
-explicit (`embedding_device="cpu"`) or requires
+The production encoder is `BAAI/bge-m3`, normally used with CUDA when
+available. Batch size defaults to 16 to keep VRAM use conservative. CPU use
+is explicit (`embedding_device="cpu"`) or requires
 `allow_cpu_fallback=True`; importing retrieval remains lazy and does not
 allocate VRAM.
 
 ## Validation
 
-- `.venv\\Scripts\\python.exe -m pytest tests --disable-warnings --maxfail=1
-  -p no:cacheprovider`: **46 passed**.
-- `.venv\\Scripts\\python.exe -m pytest tests/test_retrieval.py
-  --disable-warnings --maxfail=1 -p no:cacheprovider`: **16 passed**.
-- `python -m compileall -q corpus retrieval intelligence backend tests`:
-  passed (no compilation errors).
-- `git diff --check`: passed (no whitespace errors).
+- The maintained non-model suite was re-run in a compatible workspace-local
+  Python 3.12 runtime: **105 passed**; the focused API/Qwen/frontend set after
+  the current hardening changes: **32 passed**.
+- The optional GPU/model smoke tests and real BGE-M3 demo tests require the
+  project Python 3.11 environment plus cached model runtime and are reported
+  separately when unavailable.
+- `python -m compileall -q corpus retrieval intelligence backend tests` and
+  `git diff --check` are required final checks.
 - Retrieval unit tests cover the public service contract, top-k cap/order,
   ID-to-chunk mapping, persistence/reload equivalence, output provenance,
   invalid query/top-k values, missing/corrupt bundle artifacts, metadata
   mismatch, and wrong FAISS metric/index type.
-- Actual-source qualitative smoke validation used a persisted/reloaded
-  32-chunk index from `SP 7_2026.chunks.jsonl`; a fresh build was persisted,
-  reloaded through `RetrievalService.from_persisted`, and original/loaded
-  top-three search output compared equal for all three queries. Representative
-  rank-1 results were:
+- The current MVP has one independently indexed standard and one chunk. Unit
+  tests use deterministic injected encoders for repeatable integrity checks;
+  real BGE-M3 startup and live HTTP acceptance require cached model artifacts
+  and a compatible local runtime.
 
-  - query `fire and life safety requirements`: `chunk_eee3e84fbff6b6180d48`,
-    score `0.675408`, page 600, clause `21.2 Fire and Life Safety`;
-  - query `structural concrete design requirements`:
-    `chunk_26f243acbab738462082`, score `0.666084`, page 412, clause
-    `5.2.1 Concrete`;
-  - query `water supply drainage and sanitation`:
-    `chunk_2b11f832f1e7c1359a16`, score `0.576256`, pages 2506–2511,
-    `Annex C`.
-
-These smoke results verify execution and provenance, not Recall@K or overall
-quality: the full 13,077-chunk production index and a corpus-wide gold set
-remain to be built/evaluated on a suitably provisioned host.
+These checks verify execution and provenance, not Recall@K or broad standards
+quality. A larger independently sourced corpus and corpus-wide gold set are
+required before any BIS-wide coverage claim.
 
 ## Daksh Integration Notes
 

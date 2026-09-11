@@ -4,8 +4,8 @@ import atexit, logging, os, sys
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
-from flask import Flask, jsonify, request, send_from_directory
-from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
+from flask import Flask, g, jsonify, request, send_from_directory
+from werkzeug.exceptions import HTTPException, BadRequest, RequestEntityTooLarge
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -97,13 +97,55 @@ def _security_headers(response):
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Accept"
+        response.headers["Access-Control-Max-Age"] = "600"
         response.headers["Vary"] = "Origin"
+    started = getattr(g, "request_started", None)
+    if started is not None:
+        logger.info(
+            "HTTP request method=%s path=%s status=%d duration_ms=%.2f",
+            request.method,
+            request.path,
+            response.status_code,
+            (perf_counter() - started) * 1000,
+        )
     return response
+
+
+@app.before_request
+def _start_request_timer():
+    g.request_started = perf_counter()
 
 @app.errorhandler(RequestEntityTooLarge)
 def _too_large(_value): return _error("invalid_request", "Request body is too large.", 413)
 @app.errorhandler(BadRequest)
 def _bad_request(_value): return _error("invalid_request", "Request body must be valid JSON.", 400)
+
+
+@app.errorhandler(HTTPException)
+def _http_error(error: HTTPException):
+    """Keep routing and method failures on the same non-sensitive JSON contract."""
+    status = error.code or 500
+    if status >= 500:
+        result_state = "internal_error"
+        message = "The analysis service encountered an internal error."
+    else:
+        result_state = "invalid_request"
+        messages = {
+            404: "The requested endpoint was not found.",
+            405: "The requested method is not supported.",
+            415: "Content-Type must be application/json.",
+        }
+        message = messages.get(status, "The request could not be processed.")
+    if status >= 500:
+        logger.error("HTTP failure status=%d type=%s", status, error.__class__.__name__)
+    return _error(result_state, message, status)
+
+
+@app.errorhandler(Exception)
+def _unexpected_error(error: Exception):
+    """Prevent framework-generated HTML or exception details from reaching clients."""
+    logger.exception("Unhandled HTTP failure type=%s", error.__class__.__name__)
+    return _error("internal_error", "The analysis service encountered an internal error.", 500)
 
 @app.route("/")
 def index(): return send_from_directory(FRONTEND_DIR, "index.html")
@@ -125,10 +167,12 @@ def health():
     }
     return jsonify(payload), 200 if status == "ready" else 503
 
-@app.route("/get_result", methods=["POST", "OPTIONS"])
+@app.route("/get_result", methods=["GET", "POST", "OPTIONS"])
 def analyse_input():
     if request.method == "OPTIONS":
         return ("", 204)
+    if request.method != "POST":
+        return _error("invalid_request", "The requested method is not supported.", 405)
     started = perf_counter()
     readiness = retriever.readiness()
     if not (readiness.get("ready") and readiness.get("model_loaded")):
