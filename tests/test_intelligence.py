@@ -139,3 +139,11 @@ def test_engine_rejects_candidates_with_zero_applicability(knowledge) -> None:
     assert len(run.candidates) == 1
     assert run.candidates[0].applicability is not None
     assert run.candidates[0].applicability.overall == 0.0
+
+
+def test_engine_rejects_generic_requirement_even_when_a_chunk_is_retrieved(knowledge) -> None:
+    run = IntelligenceEngine(knowledge_base=knowledge).recommend(
+        "industrial equipment requirements", (result("candidate", "IS 2645:2003", "industrial equipment requirements", 1),)
+    )
+    assert run.recommendations == ()
+    assert run.candidates[0].constraint_result.reasons[0].code == "insufficient_requirement_specificity"

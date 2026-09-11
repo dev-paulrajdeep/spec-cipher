@@ -2,6 +2,49 @@
 
 ### AI-Powered Indian Standards Recommendation Engine
 
+> **Judge-ready MVP scope (September 2026).** The checked-in retrieval bundle
+> contains exactly one independently indexed canonical chunk: `IS 5120`,
+> “Technical requirements for general-purpose centrifugal pumps.” It is useful
+> for demonstrating the evidence-first flow, not for claiming BIS-wide or
+> multi-standard coverage. Its original PDF is absent; provenance is carried
+> from `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json`.
+
+## Run the verified MVP
+
+Use Python 3.11+ and a project-local virtual environment, then install
+`requirements.txt`. Obtain/cache the exact `BAAI/bge-m3` model before offline
+operation; normal serving does not download models. Set
+`SPEC_CIPHER_ALLOW_MODEL_DOWNLOAD=1` only for an explicit model-acquisition
+run. Build the
+matching index only after changing the canonical corpus:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\preflight.py
+.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus corpus\data\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json --output retrieval-index --device cpu --allow-cpu-fallback
+.\.venv\Scripts\python.exe backend\app.py
+```
+
+For disconnected startup, set `SPEC_CIPHER_HF_OFFLINE=1`; missing cached model
+artifacts cause an actionable startup failure rather than substitution with a
+different model. `GET /health` is ready only after BGE-M3 has loaded. The
+browser uses the same-origin `POST /get_result` API. Qwen/Ollama is optional:
+its timeout, absence, or invalid reply produces a deterministic,
+evidence-grounded explanation and warning without changing recommendations.
+
+Useful environment variables: `SPEC_CIPHER_EMBEDDING_DEVICE` (`auto`, `cuda`,
+or `cpu`), `SPEC_CIPHER_ALLOW_CPU_FALLBACK=1`, `SPEC_CIPHER_HF_OFFLINE=1`,
+`QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, `QWEN_TIMEOUT_SECONDS`,
+`SPEC_CIPHER_HOST`, and `SPEC_CIPHER_PORT`. CORS is disabled by default; set
+`SPEC_CIPHER_CORS_ORIGINS` to an explicit comma-separated allowlist only when
+hosting the frontend separately.
+
+The runtime flow is: frontend requirement → Flask validation → normalized
+1024-dimensional BGE-M3 embedding → `IndexFlatIP` cosine retrieval →
+deterministic token-overlap reranking → constraints/applicability →
+recommendation/evidence → optional explanation. Similarity/relevance is not
+applicability, confidence, or compliance. Run the maintained suite with
+`python -m pytest tests`; do not use bare `pytest` from repository root.
+
 **Smart India Hackathon 2026 --- SIH26108**
 
 SpecCipher is an AI-assisted decision-support system for identifying

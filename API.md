@@ -18,6 +18,8 @@ The response is grouped at standard level and contains at most five recommendati
   "result_state": "recommendations",
   "user_input": "industrial pump construction requirements",
   "retrieved_candidate_count": 1,
+  "reranked_candidate_count": 1,
+  "rejected_candidate_count": 0,
   "recommendations": [
     {
       "standard_number": "IS 5120",
@@ -73,10 +75,10 @@ The response is grouped at standard level and contains at most five recommendati
 
 This state means the service completed but the retrieved evidence did not pass the recommendation gates. It is distinct from an unavailable system.
 
-### Invalid request: `400 Bad Request`
+### Invalid request: `400`, `413`, or `415`
 
 ```json
-{"status":"error","message":"user_input is required."}
+{"status":"error","result_state":"invalid_request","message":"user_input is required."}
 ```
 
 ### Retrieval or recommendation service unavailable: `503`
@@ -84,12 +86,22 @@ This state means the service completed but the retrieved evidence did not pass t
 ```json
 {
   "status": "error",
-  "result_state": "unavailable",
-  "message": "Retrieval service unavailable."
+  "result_state": "dependency_unavailable",
+  "message": "Retrieval dependency is unavailable."
 }
 ```
 
 This state indicates a missing/incompatible bundle, unavailable model, or serving failure. It must not be rendered as a no-match result.
+
+`GET /health` reports the loaded model/device and returns `200` only when the
+process has an initialized retrieval model. It returns `503` with
+`"status":"not_ready"` otherwise. The endpoint deliberately reports the
+canonical corpus filename rather than an absolute workstation path.
+
+The current bundled MVP has one independently indexed `IS 5120` chunk. A
+successful recommendation is therefore not evidence of multi-standard or
+BIS-wide ranking coverage. The source PDF is not distributed; the canonical
+extracted corpus JSON is the available provenance artifact.
 
 ## Preflight
 

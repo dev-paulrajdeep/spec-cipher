@@ -182,3 +182,29 @@ def test_endpoint_caps_final_recommendations(monkeypatch: pytest.MonkeyPatch) ->
     assert response.status_code == 200
     assert len(response.get_json()["recommendations"]) == 5
 
+
+@pytest.mark.parametrize(
+    ("kwargs", "status"),
+    [
+        ({}, 415),
+        ({"data": "{" , "content_type": "application/json"}, 400),
+        ({"json": []}, 400),
+        ({"json": {"user_input": None}}, 400),
+        ({"json": {"user_input": "   "}}, 400),
+    ],
+)
+def test_endpoint_rejects_malformed_requests(monkeypatch: pytest.MonkeyPatch, kwargs, status) -> None:
+    module, _ = load_app(monkeypatch, ())
+    response = module.app.test_client().post("/get_result", **kwargs)
+    payload = response.get_json()
+    assert response.status_code == status
+    assert payload["status"] == "error"
+    assert payload["result_state"] == "invalid_request"
+
+
+def test_endpoint_rejects_oversized_requirement(monkeypatch: pytest.MonkeyPatch) -> None:
+    module, _ = load_app(monkeypatch, ())
+    response = module.app.test_client().post("/get_result", json={"user_input": "x" * 4_001})
+    assert response.status_code == 400
+    assert response.get_json()["result_state"] == "invalid_request"
+

@@ -140,11 +140,16 @@ class SentenceTransformerEncoder:
                 except Exception:
                     logger.warning("CUDA availability check failed; using CPU", exc_info=True)
 
+            if self._device == "cuda" and preferred_device != "cuda" and not self._allow_cpu_fallback:
+                raise RuntimeError(
+                    "CUDA was requested for embeddings but is unavailable; set "
+                    "SPEC_CIPHER_ALLOW_CPU_FALLBACK=1 to permit CPU fallback"
+                )
             try:
                 self._model = self._create_model(SentenceTransformer, torch, preferred_device)
                 self._resolved_device = preferred_device
             except Exception:
-                if preferred_device != "cuda":
+                if preferred_device != "cuda" or not self._allow_cpu_fallback:
                     raise
                 logger.warning("CUDA model initialization failed; retrying with CPU", exc_info=True)
                 self._clear_model(torch)
@@ -154,13 +159,14 @@ class SentenceTransformerEncoder:
 
     def _create_model(self, sentence_transformer, torch, device: str):
         model_kwargs = {"torch_dtype": torch.float16} if self._use_fp16 and device == "cuda" else {}
-        if os.getenv("SPEC_CIPHER_HF_OFFLINE", "0") == "1":
-            model_kwargs["local_files_only"] = True
-        model = sentence_transformer(
-            self._model_name,
-            device=device,
-            model_kwargs=model_kwargs or None,
-        )
+        kwargs = {"device": device, "model_kwargs": model_kwargs or None}
+        if os.getenv("SPEC_CIPHER_HF_OFFLINE", "0") == "1" or os.getenv("SPEC_CIPHER_ALLOW_MODEL_DOWNLOAD", "0") != "1":
+            # This is a SentenceTransformer constructor option, not a Hugging
+            # Face model kwarg. Cached serving is the safe default: model
+            # acquisition is an explicit setup action, never a surprise at
+            # backend startup.
+            kwargs["local_files_only"] = True
+        model = sentence_transformer(self._model_name, **kwargs)
         if self._max_seq_length is not None:
             model.max_seq_length = self._max_seq_length
         return model
@@ -176,6 +182,8 @@ class SentenceTransformerEncoder:
 
     def _fallback_to_cpu(self) -> None:
         with self._model_lock:
+            if not self._allow_cpu_fallback:
+                raise RuntimeError("CUDA embedding inference failed and CPU fallback is disabled")
             import torch
             from sentence_transformers import SentenceTransformer
 

@@ -14,7 +14,7 @@ class FakeSentenceTransformer:
     fail_on_cuda_init = False
     fail_on_cuda_encode = False
 
-    def __init__(self, model_name: str, device: str, model_kwargs=None) -> None:
+    def __init__(self, model_name: str, device: str, model_kwargs=None, local_files_only=False) -> None:
         if device == "cuda" and self.fail_on_cuda_init:
             raise RuntimeError("simulated CUDA initialization failure")
         self.model_name = model_name
@@ -81,15 +81,22 @@ def test_encoder_is_lazy_and_supports_single_batch_empty_and_normalized(monkeypa
 
 def test_encoder_cpu_fallback_is_automatic(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_runtime(monkeypatch, cuda_available=False)
-    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="cuda")
+    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="cuda", allow_cpu_fallback=True)
     encoder.encode_text("query")
     assert FakeSentenceTransformer.instances[-1].device == "cpu"
+
+
+def test_explicit_cuda_without_fallback_fails_clearly(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_runtime(monkeypatch, cuda_available=False)
+    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="cuda", allow_cpu_fallback=False)
+    with pytest.raises(RuntimeError, match="CPU fallback"):
+        encoder.encode_text("query")
 
 
 def test_encoder_falls_back_after_cuda_initialization_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_runtime(monkeypatch, cuda_available=True)
     FakeSentenceTransformer.fail_on_cuda_init = True
-    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="auto", embedding_dimension=3)
+    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="auto", embedding_dimension=3, allow_cpu_fallback=True)
 
     vector = encoder.encode_text("query")
 
@@ -100,7 +107,7 @@ def test_encoder_falls_back_after_cuda_initialization_failure(monkeypatch: pytes
 def test_encoder_falls_back_after_cuda_inference_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_runtime(monkeypatch, cuda_available=True)
     FakeSentenceTransformer.fail_on_cuda_encode = True
-    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="auto", embedding_dimension=3)
+    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="auto", embedding_dimension=3, allow_cpu_fallback=True)
 
     vector = encoder.encode_text("query")
 

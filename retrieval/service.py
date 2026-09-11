@@ -49,6 +49,17 @@ class RetrievalService:
         """Load a persisted index bundle after model/configuration validation."""
         self._retriever = self._pipeline.load(directory)
 
+    def readiness(self) -> dict[str, object]:
+        """Return non-sensitive readiness information for an HTTP health check."""
+        with self._search_lock:
+            encoder = self._pipeline.encoder
+            return {
+                "ready": self._retriever is not None,
+                "embedding_model": encoder.model_name,
+                "embedding_device": encoder.device,
+                "model_loaded": getattr(encoder, "_model", None) is not None,
+            }
+
     def search(self, query: str, top_k: int = 5) -> tuple[RetrievalResult, ...]:
         """Return up to ``top_k`` provenance-preserving semantic candidates."""
         if not isinstance(query, str) or not query.strip():
