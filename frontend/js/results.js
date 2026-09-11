@@ -7,15 +7,20 @@ class ResultsManager {
     }
 
     init() {
-        /*
-         * Refine button goes back to input screen.
-         */
         const refineBtn =
             document.getElementById('btn-refine-spec');
 
         if (refineBtn) {
             refineBtn.addEventListener('click', () => {
                 window.ui.switchView('new-analysis');
+                const textarea =
+                    document.getElementById('spec-raw-text');
+                if (textarea) {
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    textarea.focus();
+                    const length = textarea.value.length;
+                    textarea.setSelectionRange(length, length);
+                }
             });
         }
     }
@@ -159,20 +164,40 @@ class ResultsManager {
             </div>
 
             <div class="spec-parameter-cell">
-                            <div class="param-key">
-                                Retrieved candidates
+                <div class="param-key">
+                    Result state
+                </div>
+
+                <div class="param-val">
+                    ${window.ui.escapeHtml(response?.result_state || 'unknown')}
+                </div>
+            </div>
+
+            <div class="spec-parameter-cell">
+                <div class="param-key">
+                    Retrieved candidates
                 </div>
 
                 <div class="param-val">
                     ${response?.retrieved_candidate_count ?? recommendations.length}
                 </div>
             </div>
+
+            <div class="spec-parameter-cell">
+                <div class="param-key">
+                    Rejected candidates
+                </div>
+
+                <div class="param-val">
+                    ${response?.rejected_candidate_count ?? 0}
+                </div>
+            </div>
         `;
 
         /*
          * Current backend does not return
-         * "missing information", so hide
-         * that warning.
+         * "missing information", so keep that
+         * banner permanently hidden.
          */
         const missingInfoBox =
             document.getElementById(
@@ -181,6 +206,7 @@ class ResultsManager {
 
         if (missingInfoBox) {
             missingInfoBox.style.display = 'none';
+            missingInfoBox.hidden = true;
         }
     }
 
@@ -247,16 +273,24 @@ class ResultsManager {
         }
 
         if (items.length === 0) {
+            const rejected =
+                this.currentResponse?.rejected_candidate_count;
+            const retrieved =
+                this.currentResponse?.retrieved_candidate_count;
+            const detail = typeof retrieved === 'number' && retrieved > 0
+                ? `${retrieved} candidate${retrieved === 1 ? '' : 's'} retrieved but rejected by applicability/evidence thresholds.`
+                : 'Retrieved candidates did not meet the evidence and applicability thresholds.';
             list.innerHTML = `
                 <div class="empty-state-box"
+                     data-testid="no-match-state"
                      style="padding:1.5rem;">
                     <div class="empty-state-title">
                         No sufficiently supported standard found
                     </div>
 
                     <div class="empty-state-desc">
-                        Retrieved candidates did not meet the
-                        evidence and applicability thresholds.
+                        ${window.ui.escapeHtml(detail)}
+                        ${typeof rejected === 'number' ? ` Rejected after validation: ${rejected}.` : ''}
                     </div>
                 </div>
             `;
@@ -306,6 +340,10 @@ class ResultsManager {
             this.formatScore(
                 standard?.score ??
                 standard?.final_score
+            );
+        const applicability =
+            this.formatScore(
+                standard?.applicability?.overall
             );
 
         const sourceFile =
@@ -381,6 +419,16 @@ class ResultsManager {
 
                         <span class="metric-score-val">
                             ${window.ui.escapeHtml(score)}
+                        </span>
+                    </div>
+
+                    <div class="metric-item">
+                        <span class="metric-label">
+                            Applicability
+                        </span>
+
+                        <span class="metric-score-val">
+                            ${window.ui.escapeHtml(applicability)}
                         </span>
                     </div>
 

@@ -20,39 +20,44 @@ class ApiClient {
                 signal: controller.signal
             });
 
+            const contentType =
+                response.headers.get('content-type') || '';
+            let payload = null;
+            if (contentType.includes('application/json')) {
+                try {
+                    payload = await response.json();
+                } catch {
+                    payload = null;
+                }
+            }
+
             if (!response.ok) {
                 let message =
                     `Request failed with status ${response.status}`;
-
-                try {
-                    const errorData = await response.json();
-
-                    if (errorData?.message) {
-                        message = errorData.message;
-                    } else if (errorData?.error) {
-                        message = errorData.error;
-                    }
-                } catch {
-                    // Server response JSON chilo na
+                if (payload?.message) {
+                    message = payload.message;
+                } else if (payload?.error) {
+                    message = payload.error;
                 }
-
-                throw new Error(message);
+                const error = new Error(message);
+                error.resultState = payload?.result_state || null;
+                error.status = response.status;
+                throw error;
             }
 
-            const contentType =
-                response.headers.get('content-type') || '';
-
-            if (contentType.includes('application/json')) {
-                return await response.json();
+            if (payload !== null) {
+                return payload;
             }
 
             return await response.text();
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                throw new Error(
+                const timeoutError = new Error(
                     'Request timed out. Please try again.'
                 );
+                timeoutError.resultState = 'dependency_unavailable';
+                throw timeoutError;
             }
 
             throw error;

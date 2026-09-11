@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from corpus.models import StandardMetadata
 from intelligence.models import ConstraintResult
 from retrieval.models import RetrievalResult
-from .scope import scope_reasons
+from .scope import scope_reasons, title_product_reasons
 from .status import status_reasons
 from .version import version_reasons
 
@@ -22,9 +22,11 @@ class ConstraintEvaluator:
     """Hard-filter candidates before costly reranking; no candidate is silently removed."""
 
     def evaluate(self, requirement: str, candidate: RetrievalResult, context: CandidateContext) -> ConstraintResult:
+        title = context.metadata.title if context.metadata else None
         reasons = (
             *status_reasons(context.metadata),
             *version_reasons(candidate.chunk.standard_number, requirement),
             *scope_reasons(requirement, context.scope_text),
+            *title_product_reasons(requirement, title),
         )
         return ConstraintResult(admissible=not reasons, reasons=tuple(reasons))

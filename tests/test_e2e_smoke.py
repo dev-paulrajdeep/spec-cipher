@@ -15,8 +15,8 @@ from scripts.e2e_smoke import (
 
 
 def test_smoke_defaults_and_recommendation_projection() -> None:
-    assert DEFAULT_QUERY == "fire safety requirements for residential buildings"
-    assert DEFAULT_NO_RESULT_QUERY.startswith("IS 99999")
+    assert DEFAULT_QUERY == "general-purpose centrifugal pumps for industrial water service"
+    assert DEFAULT_NO_RESULT_QUERY.startswith("fire safety")
     payload = {
         "standard_number": "IS 1234:2026",
         "title": "Safety standard",
@@ -33,7 +33,7 @@ def test_smoke_defaults_and_recommendation_projection() -> None:
 
 @pytest.mark.parametrize(
     ("score", "expected"),
-    [(0.91, "91%"), (1, "100%"), (1.25, "1.25"), (None, "-")],
+    [(0.91, "0.910"), (1, "1.000"), (1.25, "1.25"), (None, "-")],
 )
 def test_rendered_score_matches_frontend_format(score: object, expected: str) -> None:
     assert rendered_score(score) == expected

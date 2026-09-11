@@ -124,5 +124,16 @@ class CorpusKnowledgeBase:
     def context_for(self, standard_number: str | None) -> StandardContext:
         return self._contexts.get(standard_number or "", StandardContext(None, None))
 
+    def indexed_standards(self) -> frozenset[str]:
+        """Return independently indexed standard numbers (metadata owners)."""
+        return frozenset(self._contexts)
+
+    def has_independent_standard(self, standard_number: str | None) -> bool:
+        """True only for standards with their own corpus metadata entry."""
+        return bool(standard_number) and standard_number in self._contexts
+
+    def indexed_standard_count(self) -> int:
+        return len(self._contexts)
+
     def related(self, standard_number: str, max_depth: int = 1) -> tuple[RelatedStandard, ...]:
         return self._graph.traverse(standard_number, max_depth)

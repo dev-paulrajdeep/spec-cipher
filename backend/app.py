@@ -49,10 +49,25 @@ def _load_runtime() -> tuple[RetrievalService, IntelligenceEngine, QwenReasoner]
             corpus_path=CANONICAL_CORPUS_FILE,
         ))
     except (PreflightError, FileNotFoundError, RuntimeError, ValueError, IndexCompatibilityError) as exc:
-        logger.error("Startup validation failed: %s", exc.__class__.__name__)
-        raise RuntimeError("SpecCipher startup failed. Verify the matching retrieval-index bundle, canonical corpus, cached BAAI/bge-m3 artifacts, and embedding device configuration.") from exc
+        logger.error(
+            "Startup validation failed type=%s detail=%s",
+            exc.__class__.__name__,
+            str(exc)[:300],
+        )
+        raise RuntimeError(
+            "SpecCipher startup failed. Verify the matching retrieval-index bundle, "
+            "canonical corpus, cached BAAI/bge-m3 artifacts, and embedding device configuration."
+        ) from exc
     knowledge_base = CorpusKnowledgeBase.from_canonical_json((CANONICAL_CORPUS_FILE,))
-    logger.info("Runtime ready offline=%s startup_ms=%.2f", hf_offline, (perf_counter() - started) * 1000)
+    readiness = service.readiness()
+    logger.info(
+        "Runtime ready offline=%s chunks=%s standards=%s device=%s startup_ms=%.2f",
+        hf_offline,
+        readiness.get("chunk_count"),
+        readiness.get("standard_count"),
+        readiness.get("embedding_device"),
+        (perf_counter() - started) * 1000,
+    )
     return service, IntelligenceEngine(knowledge_base=knowledge_base), QwenReasoner()
 
 retriever, intelligence, qwen_reasoner = _load_runtime()
@@ -63,15 +78,25 @@ if callable(close_retriever):
 def _error(code: str, message: str, status: int):
     return jsonify({"status": "error", "result_state": code, "message": message}), status
 
+def _cors_origins() -> set[str]:
+    return {item.strip() for item in os.getenv("SPEC_CIPHER_CORS_ORIGINS", "").split(",") if item.strip()}
+
 @app.after_request
 def _security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "same-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self'; "
+        "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+        "base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    )
     origin = request.headers.get("Origin")
-    allowed = {item.strip() for item in os.getenv("SPEC_CIPHER_CORS_ORIGINS", "").split(",") if item.strip()}
+    allowed = _cors_origins()
     if origin and origin in allowed:
         response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Accept"
         response.headers["Vary"] = "Origin"
     return response
 
@@ -87,11 +112,28 @@ def index(): return send_from_directory(FRONTEND_DIR, "index.html")
 def health():
     state = retriever.readiness()
     status = "ready" if state["ready"] and state["model_loaded"] else "not_ready"
-    return jsonify({"status": status, "model_loaded": state["model_loaded"], "embedding_model": state["embedding_model"], "embedding_device": state["embedding_device"], "hf_offline": hf_offline, "corpus": CANONICAL_CORPUS_FILE.name, "limitations": "One independently indexed standard and one chunk are currently available."}), 200 if status == "ready" else 503
+    payload = {
+        "status": status,
+        "model_loaded": state["model_loaded"],
+        "embedding_model": state["embedding_model"],
+        "embedding_device": state["embedding_device"],
+        "hf_offline": hf_offline,
+        "corpus": CANONICAL_CORPUS_FILE.name,
+        "chunk_count": state.get("chunk_count", 0),
+        "standard_count": state.get("standard_count", 0),
+        "limitations": "One independently indexed standard and one chunk are currently available.",
+    }
+    return jsonify(payload), 200 if status == "ready" else 503
 
-@app.route("/get_result", methods=["POST"])
+@app.route("/get_result", methods=["POST", "OPTIONS"])
 def analyse_input():
+    if request.method == "OPTIONS":
+        return ("", 204)
     started = perf_counter()
+    readiness = retriever.readiness()
+    if not (readiness.get("ready") and readiness.get("model_loaded")):
+        logger.warning("Analysis rejected because runtime is not_ready")
+        return _error("not_ready", "SpecCipher is not ready to analyse requirements yet.", 503)
     if not request.is_json: return _error("invalid_request", "Content-Type must be application/json.", 415)
     data = request.get_json(silent=True)
     if not isinstance(data, dict): return _error("invalid_request", "Request body must be a JSON object.", 400)
@@ -119,21 +161,45 @@ def analyse_input():
     diagnostics = tuple(getattr(run, "candidates", ()))
     reranked_count = sum(item.rerank_result is not None for item in diagnostics)
     rejected_count = max(0, len(diagnostics) - len(run.recommendations))
+    result_state = "recommendations" if recommendations else "no_match"
     warnings = []
     if not recommendations:
         warnings.append("No sufficiently supported standard found for this requirement.")
-        if results: warnings.append(f"{len(results)} candidate retrieved but rejected by applicability/evidence thresholds.")
-    logger.info("Analysis completed candidates=%d reranked=%d recommendations=%d duration_ms=%.2f", len(results), reranked_count, len(recommendations), (perf_counter() - started) * 1000)
-    return jsonify({"status": "success", "result_state": "recommendations" if recommendations else "no_match", "user_input": user_input, "analysis_timestamp": datetime.now(timezone.utc).isoformat(), "retrieved_candidate_count": len(results), "reranked_candidate_count": reranked_count, "rejected_candidate_count": rejected_count, "highlight_terms": _highlight_terms(user_input), "recommendations": recommendations, "warnings": warnings})
+        if results:
+            label = "candidate" if len(results) == 1 else "candidates"
+            warnings.append(
+                f"{len(results)} {label} retrieved but rejected by applicability/evidence thresholds."
+            )
+    logger.info(
+        "Analysis completed result_state=%s candidates=%d reranked=%d rejected=%d recommendations=%d duration_ms=%.2f",
+        result_state, len(results), reranked_count, rejected_count, len(recommendations),
+        (perf_counter() - started) * 1000,
+    )
+    return jsonify({
+        "status": "success",
+        "result_state": result_state,
+        "user_input": user_input,
+        "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
+        "retrieved_candidate_count": len(results),
+        "reranked_candidate_count": reranked_count,
+        "rejected_candidate_count": rejected_count,
+        "highlight_terms": _highlight_terms(user_input),
+        "recommendations": recommendations,
+        "warnings": warnings,
+    })
 
 def _serialize_recommendations(user_input, recommendations):
     payloads = []
-    for recommendation in recommendations:
+    for index, recommendation in enumerate(recommendations):
         payload = recommendation.to_dict()
-        outcome = qwen_reasoner.explain(user_input, recommendation)
-        explanation = outcome.explanation or deterministic_explanation(recommendation)
+        if index == 0:
+            outcome = qwen_reasoner.explain(user_input, recommendation)
+            explanation = outcome.explanation or deterministic_explanation(recommendation)
+            if outcome.warning:
+                payload["warnings"].append(EXPLANATION_FALLBACK_WARNING)
+        else:
+            explanation = deterministic_explanation(recommendation)
         payload["explanation"], payload["explanation_text"] = explanation, explanation["summary"]
-        if outcome.warning: payload["warnings"].append(EXPLANATION_FALLBACK_WARNING)
         payloads.append(payload)
     return payloads
 

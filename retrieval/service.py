@@ -32,6 +32,8 @@ class RetrievalService:
         self._pipeline = _pipeline or RetrievalPipeline()
         self._retriever: SemanticRetriever | None = None
         self._search_lock = RLock()
+        self._chunk_count = 0
+        self._standard_count = 0
 
     @classmethod
     def from_persisted(
@@ -48,6 +50,11 @@ class RetrievalService:
     def load(self, directory: str | Path) -> None:
         """Load a persisted index bundle after model/configuration validation."""
         self._retriever = self._pipeline.load(directory)
+        chunks = getattr(self._retriever, "_chunks", ())
+        self._chunk_count = len(chunks)
+        self._standard_count = len({
+            chunk.standard_number for chunk in chunks if getattr(chunk, "standard_number", None)
+        })
 
     def readiness(self) -> dict[str, object]:
         """Return non-sensitive readiness information for an HTTP health check."""
@@ -58,6 +65,8 @@ class RetrievalService:
                 "embedding_model": encoder.model_name,
                 "embedding_device": encoder.device,
                 "model_loaded": getattr(encoder, "_model", None) is not None,
+                "chunk_count": self._chunk_count,
+                "standard_count": self._standard_count,
             }
 
     def search(self, query: str, top_k: int = 5) -> tuple[RetrievalResult, ...]:

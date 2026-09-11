@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import logging
 import os
 from typing import Any, Callable, Mapping, TypedDict
 
 import requests
 
 from intelligence.models import Recommendation
+
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_QWEN_OLLAMA_HOST = "http://localhost:11434"
@@ -186,6 +190,10 @@ class QwenReasoner:
             content = _final_content(payload)
             return ExplanationOutcome(_parse_explanation(content))
         except Exception as exc:
+            logger.warning(
+                "Qwen explanation fallback type=%s",
+                exc.__class__.__name__,
+            )
             return ExplanationOutcome(
                 deterministic_explanation(recommendation),
                 EXPLANATION_FALLBACK_WARNING,

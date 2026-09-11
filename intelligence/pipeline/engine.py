@@ -58,7 +58,11 @@ class IntelligenceEngine:
     def recommend(self, requirement: str, candidates: tuple[RetrievalResult, ...] | list[RetrievalResult]) -> IntelligenceRun:
         """Produce ranked standard recommendations while preserving all diagnostic candidates."""
         metrics = PipelineMetrics()
-        source = self._promote_explicit_matches(requirement, tuple(candidates))
+        source = self._promote_explicit_matches(
+            requirement,
+            tuple(candidates),
+            indexed_standards=self.knowledge_base.indexed_standards(),
+        )
         started = perf_counter()
         features = self.interpreter.interpret(requirement)
         metrics.record("requirement_interpretation", started, 1)
@@ -138,6 +142,9 @@ class IntelligenceEngine:
         eligible = [
             item for item in candidates
             if canonical_is_code(item.candidate.chunk.standard_number)
+            and self.knowledge_base.has_independent_standard(
+                canonical_is_code(item.candidate.chunk.standard_number)
+            )
             and item.applicability
             and item.applicability.overall >= self.config.minimum_applicability
             and item.rerank_result
@@ -197,8 +204,12 @@ class IntelligenceEngine:
     def _promote_explicit_matches(
         requirement: str,
         candidates: tuple[RetrievalResult, ...],
+        *,
+        indexed_standards: frozenset[str] = frozenset(),
     ) -> tuple[RetrievalResult, ...]:
-        """Treat an exact query phrase cited beside a standard code as evidence for that code."""
+        """Promote only when the cited code is independently indexed in the corpus."""
+        if not indexed_standards:
+            return candidates
         phrase = re.escape(" ".join(requirement.split()))
         pattern = re.compile(
             rf"\b((?:IS|SP)\s*\d{{1,5}}\s*:\s*\d{{4}})\s+{phrase}(?=\s|$)",
@@ -211,7 +222,7 @@ class IntelligenceEngine:
             if not match:
                 continue
             standard = canonical_is_code(match.group(1))
-            if not standard:
+            if not standard or standard not in indexed_standards:
                 continue
             promoted_chunk = replace(candidate.chunk, standard_number=standard)
             promoted_id = f"{candidate.chunk.chunk_id}:{standard}"

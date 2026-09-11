@@ -221,7 +221,13 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Large PDF files
+# Large PDF files and local model caches
+*.pdf
+**/huggingface/
+**/.cache/huggingface/
+**/.cache/torch/
+*.safetensors
+*.bin
 !corpus/data/
 corpus/data/*.json
 corpus/data/*.jsonl
@@ -229,3 +235,4 @@ corpus/data/*.jsonl
 
 #Temp testing files
 .tmp
+.live-acceptance/

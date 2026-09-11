@@ -48,8 +48,8 @@
                     aria-label="Procurement specification"
                     class="spec-textarea"
                     id="spec-raw-text"
-                    maxlength="5000"
-                    placeholder="e.g. I need 100 pumps of 15 kW for agricultural use, operating at 415V, 50Hz..."
+                    maxlength="4000"
+                    placeholder="e.g. general-purpose centrifugal pumps for industrial water service"
                     rows="8"
                 ></textarea>
 
@@ -62,9 +62,14 @@
                     the current official BIS publication.
                 </p>
 
+                <div class="institutional-notice" id="analysis-error-panel" role="alert" style="display:none;"></div>
+
                 <div class="tool-clear-link">
                     <button class="btn-text-link" id="btn-clear-spec" type="button">
                         Clear form
+                    </button>
+                    <button class="btn-text-link" id="btn-retry-analysis" type="button" style="display:none; margin-left:1rem;">
+                        Retry last requirement
                     </button>
                 </div>
 
@@ -142,31 +147,7 @@
                 <div class="specs-grid-layout" id="understood-specs-grid">
                 </div>
 
-                <div class="missing-info-banner" id="missing-info-box" role="status" style="display:none;">
-                    <svg aria-hidden="true" class="missing-info-icon" fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" x2="12" y1="8" y2="12"></line>
-                        <line x1="12" x2="12.01" y1="16" y2="16"></line>
-                    </svg>
-
-                    <div>
-                        <div class="missing-info-title">
-                            Specification incomplete
-                        </div>
-
-                        <div>
-                            Providing additional product, application, or technical details may improve matching accuracy.
-                        </div>
-
-                        <ul class="missing-info-list" id="missing-info-list">
-                        </ul>
-
-                        <div style="margin-top:0.65rem;">
-                            <button class="btn btn-sm btn-secondary" data-view-target="new-analysis" type="button">
-                                Refine specification
-                            </button>
-                        </div>
-                    </div>
+                <div class="missing-info-banner" id="missing-info-box" role="status" hidden style="display:none !important;" aria-hidden="true">
                 </div>
 
             </div>
@@ -268,6 +249,14 @@
                 </h2>
 
                 <p>
+                    Current MVP corpus: one independently indexed standard
+                    (<strong>IS 5120</strong>) and one retrieval chunk.
+                    SpecCipher does not claim BIS-wide or multi-standard coverage.
+                    Related-standard mentions in evidence are provenance facts,
+                    not independently ranked recommendations.
+                </p>
+
+                <p>
                     SpecCipher is a
                     <strong>
                         decision-support tool only
@@ -277,7 +266,9 @@
                     Results must be independently verified against the
                     current official BIS publication before use in any
                     tender document, procurement contract, or legal
-                    compliance context.
+                    compliance context. The original source PDF for the
+                    current corpus is not present in this repository;
+                    provenance is carried from the canonical JSON artifact.
                 </p>
 
                 <p>
@@ -303,7 +294,7 @@
                         </span>
 
                         <span class="info-val">
-                            BIS (Indian)
+                            MVP: IS 5120 (1 chunk)
                         </span>
                     </div>
 
@@ -323,7 +314,7 @@
                         </span>
 
                         <span class="info-val">
-                            Top 5 matches
+                            Up to 5 recommendations
                         </span>
                     </div>
 
@@ -424,11 +415,11 @@
 
                 <div class="step-content-meta">
                     <div class="step-name">
-                        Ranking matches
+                        Validating applicability
                     </div>
 
                     <div class="step-desc">
-                        Ordering results by similarity
+                        Checking product, scope, and evidence thresholds
                     </div>
                 </div>
             </div>
@@ -609,9 +600,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const textarea = document.getElementById('spec-raw-text');
     const examples = [
-        'I need 100 pumps of 15 kW for agricultural use.',
-        'Steel pipes for high pressure water supply.',
-        'Electrical cables for industrial power distribution.'
+        'general-purpose centrifugal pumps for industrial water service',
+        'three-phase induction motor energy efficiency for pump equipment',
+        'fire safety requirements for a commercial building'
     ];
 
     if (textarea) {

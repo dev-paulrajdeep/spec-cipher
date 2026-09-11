@@ -26,6 +26,16 @@ class FakeRetriever:
         self._search_lock = RLock()
         self.calls: list[tuple[str, int]] = []
 
+    def readiness(self) -> dict[str, object]:
+        return {
+            "ready": True,
+            "embedding_model": "fake",
+            "embedding_device": "cpu",
+            "model_loaded": True,
+            "chunk_count": 1,
+            "standard_count": 1,
+        }
+
     def search(self, query: str, top_k: int) -> tuple[object, ...]:
         self.calls.append((query, top_k))
         return ()
@@ -165,7 +175,7 @@ def test_empty_recommendations_do_not_invoke_qwen(monkeypatch: pytest.MonkeyPatc
     assert response.status_code == 200
     assert response.get_json()["recommendations"] == []
     assert response.get_json()["warnings"] == [
-        "No sufficiently supported standard was found for this requirement."
+        "No sufficiently supported standard found for this requirement."
     ]
     assert response.get_json()["result_state"] == "no_match"
     assert response.get_json()["retrieved_candidate_count"] == 0

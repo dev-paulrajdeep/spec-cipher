@@ -1,6 +1,7 @@
 class AnalysisController {
     constructor() {
         this.progressInterval = null;
+        this.lastUserInput = '';
         this.init();
     }
 
@@ -20,12 +21,18 @@ class AnalysisController {
             });
         }
 
-        /*
-         * Analyze button
-         *
-         * Button type="submit" causes the form's submit event.
-         * This listener catches that event and calls handleSubmit().
-         */
+        const retryBtn =
+            document.getElementById('btn-retry-analysis');
+
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                if (this.lastUserInput && this.rawTextInput) {
+                    this.rawTextInput.value = this.lastUserInput;
+                }
+                this.handleSubmit();
+            });
+        }
+
         if (this.form) {
             this.form.addEventListener('submit', (e) => {
                 e.preventDefault();
@@ -35,9 +42,45 @@ class AnalysisController {
     }
 
     clearForm() {
+        this.hideErrorPanel();
         if (this.rawTextInput) {
             this.rawTextInput.value = '';
             this.rawTextInput.focus();
+        }
+    }
+
+    showErrorPanel(message, resultState) {
+        const panel =
+            document.getElementById('analysis-error-panel');
+        const retryBtn =
+            document.getElementById('btn-retry-analysis');
+        if (!panel) {
+            return;
+        }
+        const stateLabel = resultState
+            ? ` (${window.ui.escapeHtml(resultState)})`
+            : '';
+        panel.innerHTML = `
+            <div><strong>Analysis could not be completed${stateLabel}.</strong></div>
+            <div>${window.ui.escapeHtml(message)}</div>
+        `;
+        panel.style.display = 'block';
+        if (retryBtn) {
+            retryBtn.style.display = this.lastUserInput ? 'inline' : 'none';
+        }
+    }
+
+    hideErrorPanel() {
+        const panel =
+            document.getElementById('analysis-error-panel');
+        const retryBtn =
+            document.getElementById('btn-retry-analysis');
+        if (panel) {
+            panel.style.display = 'none';
+            panel.textContent = '';
+        }
+        if (retryBtn) {
+            retryBtn.style.display = 'none';
         }
     }
 
@@ -45,18 +88,29 @@ class AnalysisController {
         const userInput =
             this.rawTextInput?.value?.trim() || '';
 
-        /*
-         * Empty input check
-         */
         if (!userInput) {
+            this.showErrorPanel(
+                'Please enter a procurement requirement.',
+                'invalid_request'
+            );
             window.ui.showToast(
                 'Please enter a procurement requirement.',
                 'warning'
             );
-
             this.rawTextInput?.focus();
             return;
         }
+
+        if (userInput.length > 4000) {
+            this.showErrorPanel(
+                'Requirement must be at most 4000 characters.',
+                'invalid_request'
+            );
+            return;
+        }
+
+        this.lastUserInput = userInput;
+        this.hideErrorPanel();
 
         const submitButton =
             document.getElementById('btn-submit-analysis');
@@ -69,41 +123,27 @@ class AnalysisController {
         this.showProgressModal();
 
         try {
-            /*
-             * Send exact sentence to Flask
-             */
             const response =
                 await window.apiClient
                     .analyzeSpecification(userInput);
 
-            /*
-             * Safety check
-             */
             if (
                 !response ||
                 response.status !== 'success'
             ) {
-                throw new Error(
+                const error = new Error(
                     response?.message ||
                     'Invalid response received from backend.'
                 );
+                error.resultState = response?.result_state;
+                throw error;
             }
 
-            /*
-             * Mark progress complete
-             */
             this.completeAllProgressSteps();
 
-            /*
-             * Small delay so the user can see the
-             * completed progress state.
-             */
             setTimeout(() => {
                 this.hideProgressModal();
 
-                /*
-                 * Give backend response to results.js
-                 */
                 if (window.resultsManager) {
                     window.resultsManager.renderResults(
                         response,
@@ -120,14 +160,14 @@ class AnalysisController {
                     );
                 }
 
-                /*
-                 * Show Results section
-                 */
                 window.ui.switchView('results');
 
+                const toastMessage = response.result_state === 'no_match'
+                    ? 'No sufficiently supported standard found.'
+                    : 'Analysis completed successfully.';
                 window.ui.showToast(
-                    'Analysis completed successfully.',
-                    'success'
+                    toastMessage,
+                    response.result_state === 'no_match' ? 'warning' : 'success'
                 );
 
                 if (submitButton) {
@@ -144,8 +184,10 @@ class AnalysisController {
                 submitButton.textContent = 'Analyze';
             }
 
+            const message = error.message || 'Analysis failed.';
+            this.showErrorPanel(message, error.resultState || error.result_state);
             window.ui.showToast(
-                `Analysis failed: ${error.message}`,
+                `Analysis failed: ${message}`,
                 'error',
                 6000
             );
@@ -188,10 +230,6 @@ class AnalysisController {
                 'progress-step-item active';
         }
 
-        /*
-         * Move through the progress steps while
-         * the backend is working.
-         */
         this.progressInterval =
             setInterval(() => {
                 if (currentStep <

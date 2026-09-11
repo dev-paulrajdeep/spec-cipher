@@ -22,8 +22,8 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_QUERY = "fire safety requirements for residential buildings"
-DEFAULT_NO_RESULT_QUERY = "IS 99999:2099 quantum teleportation residential buildings"
+DEFAULT_QUERY = "general-purpose centrifugal pumps for industrial water service"
+DEFAULT_NO_RESULT_QUERY = "fire safety requirements for a commercial building"
 DEFAULT_MODEL = "qwen3-4b-thinking:latest"
 DEFAULT_PORT = 5000
 
@@ -185,7 +185,7 @@ def rendered_score(score: Any) -> str:
     if not isinstance(score, (int, float)) or isinstance(score, bool):
         return "-"
     if 0 <= score <= 1:
-        return f"{round(score * 100)}%"
+        return f"{score:.3f}"
     return str(score)
 
 
@@ -215,12 +215,12 @@ def assert_success_page(page: Any, payload: dict[str, Any], query: str, timeout_
     title = first.get("title") or first.get("section_title")
     evidence = first.get("evidence") or []
     primary_evidence = evidence[0] if evidence else {}
-    evidence_text = first.get("text") or primary_evidence.get("text")
+    evidence_text = first.get("extracted_content") or primary_evidence.get("text")
     explanation = first.get("explanation")
     if not standard_number or not title or not evidence_text:
         raise SmokeFailure("Recommendation response is missing standard number, title, or evidence")
     if not isinstance(explanation, dict) or not explanation.get("summary"):
-        raise SmokeFailure("Qwen explanation is missing from the successful response")
+        raise SmokeFailure("Explanation is missing from the successful response")
 
     page.locator("#results-content-area").wait_for(state="visible", timeout=timeout_ms)
     page.locator(".standard-record-card").first.wait_for(state="visible", timeout=timeout_ms)
@@ -229,28 +229,23 @@ def assert_success_page(page: Any, payload: dict[str, Any], query: str, timeout_
     reasoning_panel.wait_for(state="visible", timeout=timeout_ms)
     reasoning_text = reasoning_panel.inner_text()
     score = first.get("score", first.get("final_score"))
-    for required in (standard_number, title, "Relevance", rendered_score(score), f"#{first.get('rank')}" ):
+    for required in (standard_number, title, "Relevance", "Applicability", rendered_score(score), f"#{first.get('rank')}" ):
         if str(required) not in text:
             raise SmokeFailure(f"Rendered recommendation page is missing {required!r}")
-    for required in ("Retrieved content", evidence_text[:40]):
+    for required in ("Extracted content", evidence_text[:40], "Explanation"):
         if str(required).casefold() not in reasoning_text.casefold():
             raise SmokeFailure(
                 f"Rendered recommendation page is missing {required!r}; "
                 f"reasoning text was {reasoning_text!r}"
             )
-    explanation_node = page.locator('[data-testid="recommendation-explanation"]').first
-    explanation_node.wait_for(state="visible", timeout=timeout_ms)
-    if explanation["summary"] not in explanation_node.inner_text():
-        raise SmokeFailure("Rendered recommendation page does not contain the Qwen explanation summary")
-    for caveat in explanation.get("caveats", []):
-        if caveat not in explanation_node.inner_text():
-            raise SmokeFailure("Rendered recommendation page does not contain a Qwen caveat")
-    related = first.get("related_standards") or []
-    if related:
-        related_node = page.locator('[data-testid="related-standards"]').first
+    if explanation["summary"] not in reasoning_text:
+        raise SmokeFailure("Rendered recommendation page does not contain the explanation summary")
+    related_topics = first.get("related_topics") or []
+    if related_topics:
+        related_node = page.locator('[data-testid="related-topics"]').first
         related_node.wait_for(state="visible", timeout=timeout_ms)
-        if related[0].get("standard_number") not in related_node.inner_text():
-            raise SmokeFailure("Rendered recommendation page does not contain related standards")
+        if related_topics[0] not in related_node.inner_text():
+            raise SmokeFailure("Rendered recommendation page does not contain related topics")
     return {
         "standard_number": standard_number,
         "title": title,
@@ -258,7 +253,7 @@ def assert_success_page(page: Any, payload: dict[str, Any], query: str, timeout_
         "rank": first.get("rank"),
         "evidence_count": len(first.get("evidence", [])) or 1,
         "explanation": explanation,
-        "related_standards_count": len(related),
+        "related_standards_count": len(first.get("related_standards") or []),
     }
 
 
@@ -290,14 +285,15 @@ def run_browser_flow(args: argparse.Namespace, base_url: str, model_name: str) -
             if failure_payload.get("status") != "success" or not failure_payload.get("recommendations"):
                 raise SmokeFailure("Qwen failure isolation did not preserve the recommendation")
             failed_recommendation = failure_payload["recommendations"][0]
-            if failed_recommendation.get("explanation") is not None:
-                raise SmokeFailure("Qwen failure isolation unexpectedly returned an explanation")
-            if not any("Explanation unavailable" in warning for warning in failed_recommendation.get("warnings", [])):
+            explanation = failed_recommendation.get("explanation")
+            if not isinstance(explanation, dict) or not explanation.get("summary"):
+                raise SmokeFailure("Qwen failure isolation did not provide a deterministic explanation")
+            if not any("AI explanation unavailable" in warning for warning in failed_recommendation.get("warnings", [])):
                 raise SmokeFailure("Qwen failure isolation did not expose the existing warning")
             if stable_recommendation(failed_recommendation) != result["recommendation_integrity_baseline"]:
                 raise SmokeFailure("Qwen failure changed recommendation fields")
             page.locator("#results-content-area").wait_for(state="visible", timeout=int(args.timeout * 1000))
-            if "Explanation unavailable" not in page.locator("#results-global-warnings").inner_text():
+            if "AI explanation unavailable" not in page.locator("#results-global-warnings").inner_text():
                 raise SmokeFailure("Qwen failure warning was not rendered in the UI")
             result["failure_isolation"] = {"status": "passed", "latency_seconds": failure_latency}
 
@@ -310,7 +306,7 @@ def run_browser_flow(args: argparse.Namespace, base_url: str, model_name: str) -
             page.locator("#results-content-area").wait_for(state="visible", timeout=int(args.timeout * 1000))
             if "No sufficiently supported standard found" not in page.locator("#ranked-standards-list").inner_text():
                 raise SmokeFailure("No-result UI did not render the existing no-match behavior")
-            if "Explanation unavailable" in page.locator("#results-global-warnings").inner_text():
+            if "AI explanation unavailable" in page.locator("#results-global-warnings").inner_text():
                 raise SmokeFailure("No-result path attempted Qwen explanation")
             result["no_result"] = {"status": "passed", "latency_seconds": no_result_latency}
             browser.close()
