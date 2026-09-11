@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from corpus.models import CorpusPage, StandardMetadata
-from corpus.processing.normalizer import normalize_document_number
+from corpus.processing.normalizer import find_document_numbers, normalize_document_number
 from .parser import StandardNumberParser
 
 
@@ -22,7 +22,27 @@ class MetadataExtractor:
 
     def extract(self, pages: tuple[CorpusPage, ...], source_file: str) -> StandardMetadata:
         leading_text = "\n".join(page.cleaned_text for page in pages[:3])
-        standard_number = self._parser.parse(leading_text) or self._parser.parse(source_file)
+        # Never invent identity from multi-document bodies or ambiguous filenames.
+        # The corpus update identity layer is authoritative for recommendation use.
+        content_numbers = find_document_numbers(leading_text)
+        base_numbers = tuple(dict.fromkeys(_base(number) for number in content_numbers))
+        filename_number = self._parser.parse(source_file)
+        if len(base_numbers) == 1:
+            chosen_base = base_numbers[0]
+            standard_number = next(
+                number for number in content_numbers if _base(number) == chosen_base
+            )
+        elif filename_number and not content_numbers:
+            standard_number = filename_number
+        elif filename_number and any(
+            _base(number) == _base(filename_number) for number in content_numbers
+        ):
+            filename_base = _base(filename_number)
+            standard_number = next(
+                number for number in content_numbers if _base(number) == filename_base
+            )
+        else:
+            standard_number = None
         title = self._title_from_leading_pages(pages, standard_number)
         edition = self._first_group(_EDITION_RE, leading_text)
         revisions = _REVISION_RE.findall(leading_text)
@@ -65,3 +85,7 @@ class MetadataExtractor:
                         ):
                             return following
         return None
+
+
+def _base(value: str) -> str:
+    return re.sub(r"[:/]\d{2,4}$", "", value).strip()

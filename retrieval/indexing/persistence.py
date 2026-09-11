@@ -55,7 +55,7 @@ class IndexMetadata:
             or any(character not in "0123456789abcdef" for character in self.corpus_fingerprint)
         ):
             raise ValueError("Persisted corpus fingerprint is invalid")
-        if not isinstance(self.chunk_count, int) or isinstance(self.chunk_count, bool) or self.chunk_count < 1:
+        if not isinstance(self.chunk_count, int) or isinstance(self.chunk_count, bool) or self.chunk_count < 0:
             raise ValueError("Persisted chunk count is invalid")
         if not isinstance(self.created_at_utc, str) or not self.created_at_utc.strip():
             raise ValueError("Persisted creation timestamp is invalid")
@@ -252,6 +252,12 @@ class IndexPersistence:
                 element_ids=tuple(element_ids),
                 source_path=row.get("source_path"),
                 document_fingerprint=row.get("document_fingerprint"),
+                document_id=row.get("document_id"),
+                title=row.get("title"),
+                chunking_version=row.get("chunking_version"),
+                document_type=row.get("document_type"),
+                recommendation_eligible=row.get("recommendation_eligible"),
+                identity_status=row.get("identity_status"),
             ))
         chunk_ids = [chunk.chunk_id for chunk in chunks]
         if len(chunk_ids) != len(set(chunk_ids)):

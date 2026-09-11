@@ -1,52 +1,90 @@
 {
-  "chunk_count": 20,
+  "chunk_count": 43,
+  "chunk_count_eligible": 0,
   "chunking_version": "1.1",
-  "chunks_fingerprint": "b14a1acc25788ee84c8c2c38e9af5e358a5b66a69f9b794163526d1f59596214",
-  "corpus_fingerprint": "82b2e30c3a9c5894215b25109dfb22f0b26cc7af84060a334e7b3058a64108f1",
-  "document_count": 2,
+  "chunks_fingerprint": "f071d7b57512eb2232202ba29180543f6891370d639b65c26f2039aae601604d",
+  "corpus_fingerprint": "49be6595b2b31a7a6dfa0e50763d064df5c867a89e992fbc0f10d8dbf8616c1c",
+  "document_count": 3,
+  "document_count_catalog_list": 3,
+  "document_count_eligible": 0,
   "documents": [
     {
       "chunk_count": 8,
       "document_fingerprint": "14fdca6039121576cd8bb7bfaee034ddc66d44df73628b9f7dc99c7e8bc7eec3",
-      "document_id": "TEMP_2131689472",
-      "document_path": "documents/TEMP_2131689472.json",
-      "identity_status": "resolved",
+      "document_id": "doc_14fdca6039121576",
+      "document_path": "documents/doc_14fdca6039121576.json",
+      "document_type": "list",
+      "identity_status": "unresolved",
       "page_count": 5,
+      "recommendation_eligible": false,
       "source_filename": "temp_2131689472.pdf",
       "source_path": "temp_2131689472.pdf",
-      "standard_number": "TEMP-2131689472",
-      "title": "List of Major Consumer Products Notified for"
+      "standard_number": null,
+      "title": "Annexure-2"
+    },
+    {
+      "chunk_count": 23,
+      "document_fingerprint": "7c55d2031ef83fb393bcea9d60e429dcc9b65675f9aa7e380cc2e8f06965db2f",
+      "document_id": "doc_7c55d2031ef83fb3",
+      "document_path": "documents/doc_7c55d2031ef83fb3.json",
+      "document_type": "list",
+      "identity_status": "unresolved",
+      "page_count": 27,
+      "recommendation_eligible": false,
+      "source_filename": "List-of-Products-Under-Simplified-Procedure.pdf",
+      "source_path": "List-of-Products-Under-Simplified-Procedure.pdf",
+      "standard_number": null,
+      "title": "Draft"
     },
     {
       "chunk_count": 12,
       "document_fingerprint": "81d49d76f404c69fde86758bf7f392662e00910a49ee831a2393d08c8dbf4ee3",
-      "document_id": "TEMP_2131689475",
-      "document_path": "documents/TEMP_2131689475.json",
-      "identity_status": "resolved",
+      "document_id": "doc_81d49d76f404c69f",
+      "document_path": "documents/doc_81d49d76f404c69f.json",
+      "document_type": "list",
+      "identity_status": "unresolved",
       "page_count": 9,
+      "recommendation_eligible": false,
       "source_filename": "temp_2131689475.pdf",
       "source_path": "temp_2131689475.pdf",
-      "standard_number": "TEMP-2131689475",
-      "title": "List of Major Consumer Products Notified for"
+      "standard_number": null,
+      "title": "Annexure-1"
     }
   ],
+  "eligible_chunks_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "embedding_dimension": 1024,
   "embedding_model": "BAAI/bge-m3",
-  "failed_documents": [
-    {
-      "error_class": "unresolved_identity",
-      "filename": "List-of-Products-Under-Simplified-Procedure.pdf",
-      "message": "Document looks like a catalog/list that mentions multiple document numbers. Place each publication as its own PDF with a clear filename identity so mentioned references are not promoted.",
-      "remediation": "Use one publication per PDF and a clear filename identity (for example STD-1001.pdf or ISO_9001.pdf).",
-      "source_path": "List-of-Products-Under-Simplified-Procedure.pdf"
-    }
-  ],
+  "failed_documents": [],
   "historical_checklist_untouched": true,
-  "index_fingerprint": "73100ab9b85c9db5c115e9d70b257341bd0850bb2186d0a931772ba1fbe70726",
-  "ingestion_version": "1.1",
+  "index_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "indexed_chunk_count": 0,
+  "ingestion_version": "1.2",
+  "recommendation_corpus": "corpus.eligible.chunks.jsonl",
   "retrieval_corpus": "corpus.chunks.jsonl",
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "source_dir": "officialBIS",
   "source_policy": "user_supplied_pdfs_only",
-  "unresolved_documents": []
+  "unresolved_documents": [
+    {
+      "document_id": "doc_14fdca6039121576",
+      "document_type": "list",
+      "recommendation_eligible": false,
+      "source_path": "temp_2131689472.pdf",
+      "title": "Annexure-2"
+    },
+    {
+      "document_id": "doc_7c55d2031ef83fb3",
+      "document_type": "list",
+      "recommendation_eligible": false,
+      "source_path": "List-of-Products-Under-Simplified-Procedure.pdf",
+      "title": "Draft"
+    },
+    {
+      "document_id": "doc_81d49d76f404c69f",
+      "document_type": "list",
+      "recommendation_eligible": false,
+      "source_path": "temp_2131689475.pdf",
+      "title": "Annexure-1"
+    }
+  ]
 }

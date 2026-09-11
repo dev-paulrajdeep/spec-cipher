@@ -6,8 +6,9 @@ generates, synthesizes, or reconstructs PDFs.
 
 The pipeline is general-purpose: IS, ISO, IEC, ASTM, and unnamed technical PDFs
 are handled by the same discovery → extraction → identity → chunking → JSONL →
-FAISS flow. Catalog/list PDFs that only mention many document numbers are
-rejected rather than promoted.
+FAISS flow. Catalog/list PDFs may be retained as searchable/reference-only
+records but are not recommendation-eligible and are excluded from the
+recommendation FAISS index.
 
 The historical demo checklist JSON under corpus/data/ is separate and is not
 overwritten by this workflow.
@@ -81,9 +82,7 @@ def main() -> int:
         print(f"Corpus update failed: {exc}")
         return 1
     summary.print_report()
-    if summary.successfully_processed == 0:
-        return 1
-    if summary.failed_documents and summary.chunks_generated == 0:
+    if summary.successfully_processed == 0 and summary.failed_documents:
         return 1
     return 0
 

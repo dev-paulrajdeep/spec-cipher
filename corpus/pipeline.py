@@ -92,7 +92,13 @@ class CorpusBuilder:
         metadata = self.metadata_extractor.extract(pages, ocr_result.document.source_file)
         sections = self.section_detector.detect(pages)
         relationships = self.relationship_extractor.extract(pages, metadata.standard_number, sections)
-        chunks = self.chunker.chunk(sections, metadata.standard_number, metadata.source_file)
+        chunks = self.chunker.chunk(
+            sections,
+            metadata.standard_number,
+            metadata.source_file,
+            document_id=metadata.document_id,
+            document_fingerprint=metadata.document_fingerprint,
+        )
         chunks, pages = self._link_multimodal_provenance(
             pages, sections, chunks, metadata.source_file, metadata.standard_number
         )

@@ -10,6 +10,8 @@ CORPUS_DOCUMENTS_DIR = CORPUS_DATA_DIR / "documents"
 CORPUS_MANIFEST_PATH = CORPUS_DATA_DIR / "manifest.json"
 # Produced only by scripts/update_corpus.py from user-supplied officialBIS PDFs.
 CANONICAL_CORPUS_PATH = CORPUS_DATA_DIR / "corpus.chunks.jsonl"
+# Recommendation FAISS is built only from identity-resolved, eligible chunks.
+ELIGIBLE_CORPUS_PATH = CORPUS_DATA_DIR / "corpus.eligible.chunks.jsonl"
 # Historical/demo checklist JSON. Not an official BIS PDF extraction and must
 # not be overwritten by the officialBIS update workflow.
 LEGACY_CANONICAL_CORPUS_PATH = (
@@ -55,17 +57,19 @@ def resolve_knowledge_base_paths() -> tuple[Path, ...]:
 
 
 def resolve_retrieval_corpus_path() -> Path:
-    """Prefer officialBIS-derived chunks; otherwise the historical demo checklist."""
+    """Prefer eligible recommendation chunks; otherwise full corpus or historical demo."""
+    if ELIGIBLE_CORPUS_PATH.is_file():
+        return ELIGIBLE_CORPUS_PATH
     if CANONICAL_CORPUS_PATH.is_file():
         return CANONICAL_CORPUS_PATH
     if LEGACY_CANONICAL_CORPUS_PATH.is_file():
         return LEGACY_CANONICAL_CORPUS_PATH
-    return CANONICAL_CORPUS_PATH
+    return ELIGIBLE_CORPUS_PATH
 
 
 def serving_corpus_origin() -> str:
     """Describe which corpus artifact runtime serving will use."""
-    if CANONICAL_CORPUS_PATH.is_file():
+    if ELIGIBLE_CORPUS_PATH.is_file() or CANONICAL_CORPUS_PATH.is_file():
         return "officialbis_derived"
     if LEGACY_CANONICAL_CORPUS_PATH.is_file():
         return "historical_demo_checklist"

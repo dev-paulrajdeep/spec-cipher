@@ -141,9 +141,23 @@ def test_loader_preserves_unknown_standard_identifier(tmp_path, chunks) -> None:
     assert loaded.chunks[0].standard_number is None
 
 
-def test_loader_recovers_source_filename_identity_without_converting_sp_to_is(tmp_path, chunks) -> None:
+def test_loader_does_not_invent_standard_number_from_source_filename(tmp_path, chunks) -> None:
+    """Explicit null identity must stay null; filenames are not identity at load time."""
     row = chunk_row(chunks[0])
     row["standard_number"] = None
+    row["source_file"] = "SP 7_2026.pdf"
+    artifact = tmp_path / "special-publication.jsonl"
+    artifact.write_text(json.dumps(row), encoding="utf-8")
+
+    loaded = CorpusChunkLoader().load(artifact)
+
+    assert loaded.chunks[0].standard_number is None
+    assert loaded.chunks[0].source_file == "SP 7_2026.pdf"
+
+
+def test_loader_preserves_explicit_family_standard_number(tmp_path, chunks) -> None:
+    row = chunk_row(chunks[0])
+    row["standard_number"] = "SP 7:2026"
     row["source_file"] = "SP 7_2026.pdf"
     artifact = tmp_path / "special-publication.jsonl"
     artifact.write_text(json.dumps(row), encoding="utf-8")
@@ -249,10 +263,11 @@ def test_public_service_contract_hides_index_and_serializes_provenance(tmp_path,
     }
 
 
-def test_duplicate_chunks_and_empty_corpus_cannot_be_indexed(encoder, chunks) -> None:
+def test_duplicate_chunks_and_empty_corpus_indexing(encoder, chunks) -> None:
     retrieval = pipeline(encoder)
-    with pytest.raises(ValueError, match="empty corpus"):
-        retrieval.build(())
+    empty = retrieval.build(())
+    assert empty._index.count == 0
+    assert empty.search("waterproofing compound for concrete") == ()
     with pytest.raises(ValueError, match="duplicate"):
         retrieval.build((chunks[0], chunks[0]))
 

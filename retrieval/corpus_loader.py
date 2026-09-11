@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from corpus.models import DocumentChunk
-from corpus.processing.normalizer import normalize_standard_number
 
 
 class CorpusChunkLoadError(ValueError):
@@ -80,8 +79,8 @@ class CorpusChunkLoader:
             raise CorpusChunkLoadError("Canonical JSON chunks must all be objects")
         metadata = payload.get("metadata")
         parent_standard_number = metadata.get("standard_number") if isinstance(metadata, dict) else None
-        if not parent_standard_number and isinstance(metadata, dict):
-            parent_standard_number = normalize_standard_number(str(metadata.get("source_file", "")))
+        # Never invent identity from filenames at load time. Filename may only
+        # fill gaps when the canonical metadata already carries an explicit number.
         if parent_standard_number is not None and (
             not isinstance(parent_standard_number, str) or not parent_standard_number.strip()
         ):
@@ -127,7 +126,8 @@ class CorpusChunkLoader:
             or any(not isinstance(value, str) or not value.strip() for value in element_ids)
         ):
             raise CorpusChunkLoadError(f"{location}.element_ids must be a list of non-empty strings")
-        standard_number = row["standard_number"] or normalize_standard_number(row["source_file"])
+        # Preserve explicit null. Do not synthesize identity from source_file.
+        standard_number = row["standard_number"]
         source_path = row.get("source_path")
         document_fingerprint = row.get("document_fingerprint")
         if source_path is not None and (not isinstance(source_path, str) or not source_path.strip()):
@@ -141,10 +141,15 @@ class CorpusChunkLoader:
         document_id = row.get("document_id")
         title = row.get("title")
         chunking_version = row.get("chunking_version")
+        document_type = row.get("document_type")
+        identity_status = row.get("identity_status")
+        recommendation_eligible = row.get("recommendation_eligible")
         for optional_name, optional_value in (
             ("document_id", document_id),
             ("title", title),
             ("chunking_version", chunking_version),
+            ("document_type", document_type),
+            ("identity_status", identity_status),
         ):
             if optional_value is not None and (
                 not isinstance(optional_value, str) or not optional_value.strip()
@@ -152,6 +157,14 @@ class CorpusChunkLoader:
                 raise CorpusChunkLoadError(
                     f"{location}.{optional_name} must be a non-empty string or null"
                 )
+        if recommendation_eligible is not None and not isinstance(recommendation_eligible, bool):
+            raise CorpusChunkLoadError(
+                f"{location}.recommendation_eligible must be a boolean or null"
+            )
+        if identity_status is not None and identity_status not in {"resolved", "unresolved"}:
+            raise CorpusChunkLoadError(
+                f"{location}.identity_status must be 'resolved', 'unresolved', or null"
+            )
         return DocumentChunk(
             chunk_id=row["chunk_id"],
             standard_number=standard_number,
@@ -167,6 +180,9 @@ class CorpusChunkLoader:
             document_id=document_id,
             title=title,
             chunking_version=chunking_version,
+            document_type=document_type,
+            recommendation_eligible=recommendation_eligible,
+            identity_status=identity_status,
         )
 
     @staticmethod

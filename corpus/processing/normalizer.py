@@ -28,6 +28,7 @@ _GENERIC_BLOCKLIST = frozenset(
         "PART",
         "SECTION",
         "ANNEX",
+        "ANNEXURE",
         "APPENDIX",
         "TABLE",
         "FIGURE",
@@ -50,6 +51,9 @@ _GENERIC_BLOCKLIST = frozenset(
         "DOCUMENT",
         "IMAGE",
         "EXPORT",
+        "CEMENT",
+        "PRODUCT",
+        "CATEGORY",
     }
 )
 

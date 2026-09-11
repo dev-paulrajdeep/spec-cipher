@@ -58,18 +58,22 @@ class RetrievalPipeline:
         return self.build(loaded.chunks, corpus_schema_version=loaded.schema_version)
 
     def build(self, chunks: tuple[DocumentChunk, ...], corpus_schema_version: str | None = None) -> SemanticRetriever:
-        """Encode validated chunks once and create an exact normalized-vector FAISS index."""
-        if not chunks:
-            raise ValueError("Cannot build a retrieval index from an empty corpus")
+        """Encode validated chunks once and create an exact normalized-vector FAISS index.
+
+        An empty eligible corpus is allowed: the resulting index contains zero vectors
+        and search returns no candidates. This supports catalog-only / unresolved-only
+        source directories without inventing recommendation-eligible documents.
+        """
         ids = [chunk.chunk_id for chunk in chunks]
         if len(ids) != len(set(ids)):
             raise ValueError("Cannot build a retrieval index with duplicate chunk IDs")
         started = perf_counter()
-        vectors = self.encoder.encode_batch([chunk.text for chunk in chunks])
-        if vectors.ndim != 2 or vectors.shape != (len(chunks), self.encoder.dimension):
-            raise ValueError("Embedding encoder returned an incompatible batch shape")
         index = FaissIndex(self.encoder.dimension)
-        index.add(vectors, ids)
+        if chunks:
+            vectors = self.encoder.encode_batch([chunk.text for chunk in chunks])
+            if vectors.ndim != 2 or vectors.shape != (len(chunks), self.encoder.dimension):
+                raise ValueError("Embedding encoder returned an incompatible batch shape")
+            index.add(vectors, ids)
         logger.info(
             "Built semantic index: chunks=%d model=%s dimension=%d index_type=%s duration_ms=%.2f",
             len(chunks), self.encoder.model_name, self.encoder.dimension, index.index_type, (perf_counter() - started) * 1000,

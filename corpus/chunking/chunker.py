@@ -32,14 +32,25 @@ class DocumentChunker:
         self.config = config or ChunkingConfig()
 
     def chunk(
-        self, sections: tuple[Section, ...], standard_number: str | None, source_file: str
+        self,
+        sections: tuple[Section, ...],
+        standard_number: str | None,
+        source_file: str,
+        *,
+        document_id: str | None = None,
+        document_fingerprint: str | None = None,
     ) -> tuple[DocumentChunk, ...]:
         chunks: list[DocumentChunk] = []
+        identity_root = document_id or document_fingerprint or source_file
         for section in sections:
             for part in self._split(section.text):
                 ordinal = len(chunks) + 1
                 identity = "|".join(
-                    (source_file, standard_number or "", section.section_number or "preamble", str(ordinal))
+                    (
+                        identity_root,
+                        section.section_number or "preamble",
+                        str(ordinal),
+                    )
                 )
                 chunks.append(
                     DocumentChunk(
@@ -51,6 +62,8 @@ class DocumentChunker:
                         section_number=section.section_number,
                         section_title=section.title,
                         text=part,
+                        document_id=document_id,
+                        document_fingerprint=document_fingerprint,
                         chunking_version=CHUNKING_VERSION,
                     )
                 )

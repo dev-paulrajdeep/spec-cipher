@@ -61,6 +61,8 @@ def validate_bundle(
         )
     if not isinstance(embedding_dimension, int) or embedding_dimension < 1:
         raise PreflightError("Persisted embedding dimension is missing or invalid")
+    # Empty eligible indexes are valid when officialBIS contains only
+    # reference-only documents (catalogs/lists/unresolved identity).
 
     if check_ollama:
         parsed = urlsplit(ollama_host)

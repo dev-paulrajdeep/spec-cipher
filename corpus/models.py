@@ -101,6 +101,17 @@ class CorpusPage:
     figures: tuple[Figure, ...] = ()
 
 
+DocumentTypeName = Literal[
+    "standard",
+    "catalog",
+    "list",
+    "index",
+    "manual",
+    "technical_document",
+    "unknown",
+]
+
+
 @dataclass(frozen=True)
 class StandardMetadata:
     """Only values evidenced by the source; unknown fields remain ``None``."""
@@ -116,6 +127,10 @@ class StandardMetadata:
     # Optional ingestion provenance retained for corpus update / audit trails.
     source_path: str | None = None
     document_fingerprint: str | None = None
+    document_id: str | None = None
+    document_type: DocumentTypeName | None = None
+    identity_status: Literal["resolved", "unresolved"] | None = None
+    recommendation_eligible: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -170,6 +185,9 @@ class DocumentChunk:
     document_id: str | None = None
     title: str | None = None
     chunking_version: str | None = None
+    document_type: DocumentTypeName | None = None
+    recommendation_eligible: bool | None = None
+    identity_status: Literal["resolved", "unresolved"] | None = None
 
 
 @dataclass(frozen=True)

@@ -121,6 +121,10 @@ class CorpusKnowledgeBase:
                 page_count=metadata_data["page_count"],
                 source_path=metadata_data.get("source_path"),
                 document_fingerprint=metadata_data.get("document_fingerprint"),
+                document_id=metadata_data.get("document_id"),
+                document_type=metadata_data.get("document_type"),
+                identity_status=metadata_data.get("identity_status"),
+                recommendation_eligible=metadata_data.get("recommendation_eligible"),
             )
             scope_text = "\n".join(
                 section.get("text", "") for section in payload.get("sections", [])
