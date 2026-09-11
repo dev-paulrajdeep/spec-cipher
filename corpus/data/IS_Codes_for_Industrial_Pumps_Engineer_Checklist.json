@@ -1,0 +1,206 @@
+{
+  "schema_version": "1.1",
+  "metadata": {
+    "standard_number": "IS 5120",
+    "title": "Technical requirements for general-purpose centrifugal pumps.",
+    "year": null,
+    "edition": null,
+    "revision": null,
+    "status": null,
+    "source_file": "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+    "page_count": 1
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "raw_text": "IS Codes for Industrial Pumps – Engineer\nPurchasing Checklist\nIntroduction\nAn engineer buying 100 industrial pumps uses Indian Standard (IS) codes as a mandatory\ntechnical checklist. These codes define manufacturing, performance, safety, and testing\nrequirements that every pump must satisfy before delivery. 1. Specifying the Exact Pump Type in\nthe Tender\n• IS 5120: Technical requirements for general-purpose centrifugal pumps.\n• IS 1520: Horizontal centrifugal pumps for agricultural and water supply applications.\n• IS 8034: Submersible pump sets for clear, cold water.\n• IS 5600: Sewage pumps. 2. Ensuring Electrical and Motor Compatibility\n• IS 12615: Energy-efficient motors (IE2/IE3 classes).\n• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and\nTesting\nUsing IS 9137 or IS 10981, the engineer requires:\n• Hydrostatic test certificates.\n• Performance curve testing for flow rate and pressure head verification. 4. Piping and Installation\nStandards\n• IS 1538: Cast iron flange dimensions for pump connections.\n• IS 2062: Structural steel requirements for pump support frames. Summary Checklist\nThe purchase order may include:\n“All 100 units must strictly comply with IS 5120 for construction, IS 9137 for performance testing,\nand be driven by motors conforming to IS 12615.” Application Note\nThe exact IS codes may vary depending on the fluid being pumped, such as clear water, chemicals,\nsewage, or oil.\n",
+      "cleaned_text": "IS Codes for Industrial Pumps – Engineer Purchasing Checklist Introduction An engineer buying 100 industrial pumps uses Indian Standard (IS) codes as a mandatory technical checklist. These codes define manufacturing, performance, safety, and testing requirements that every pump must satisfy before delivery. 1. Specifying the Exact Pump Type in the Tender\n• IS 5120: Technical requirements for general-purpose centrifugal pumps.\n• IS 1520: Horizontal centrifugal pumps for agricultural and water supply applications.\n• IS 8034: Submersible pump sets for clear, cold water.\n• IS 5600: Sewage pumps. 2. Ensuring Electrical and Motor Compatibility\n• IS 12615: Energy-efficient motors (IE2/IE3 classes).\n• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and Testing Using IS 9137 or IS 10981, the engineer requires:\n• Hydrostatic test certificates.\n• Performance curve testing for flow rate and pressure head verification. 4. Piping and Installation Standards\n• IS 1538: Cast iron flange dimensions for pump connections.\n• IS 2062: Structural steel requirements for pump support frames. Summary Checklist The purchase order may include:\n“All 100 units must strictly comply with IS 5120 for construction, IS 9137 for performance testing, and be driven by motors conforming to IS 12615.” Application Note The exact IS codes may vary depending on the fluid being pumped, such as clear water, chemicals, sewage, or oil.",
+      "ocr_applied": false,
+      "id": "page_0001",
+      "standard_id": "IS 5120",
+      "bbox": {
+        "x0": 0.0,
+        "y0": 0.0,
+        "x1": 595.2755737304688,
+        "y1": 841.8897705078125
+      },
+      "type": "page",
+      "width": 595.2755737304688,
+      "height": 841.8897705078125,
+      "asset_path": ".tmp\\truth_rebuild\\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.assets\\pages\\page-0001.png",
+      "provenance": {
+        "source_file": "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+        "standard_id": "IS 5120",
+        "page_number": 1,
+        "section_numbers": [],
+        "chunk_ids": [
+          "chunk_84834155400e882fc392"
+        ]
+      },
+      "text_blocks": [
+        {
+          "id": "text_abbea0fd36a40c852da5",
+          "standard_id": "IS 5120",
+          "page_number": 1,
+          "bbox": {
+            "x0": 120.58979797363281,
+            "y0": 76.73999786376953,
+            "x1": 474.6857604980469,
+            "y1": 101.5260009765625
+          },
+          "type": "text",
+          "content": "IS Codes for Industrial Pumps – Engineer",
+          "provenance": {
+            "source_file": "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+            "standard_id": "IS 5120",
+            "page_number": 1,
+            "section_numbers": [],
+            "chunk_ids": [
+              "chunk_84834155400e882fc392"
+            ]
+          }
+        },
+        {
+          "id": "text_6058df9f0096bcd8daa1",
+          "standard_id": "IS 5120",
+          "page_number": 1,
+          "bbox": {
+            "x0": 206.10780334472656,
+            "y0": 98.73999786376953,
+            "x1": 389.1677551269531,
+            "y1": 123.5260009765625
+          },
+          "type": "text",
+          "content": "Purchasing Checklist",
+          "provenance": {
+            "source_file": "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+            "standard_id": "IS 5120",
+            "page_number": 1,
+            "section_numbers": [],
+            "chunk_ids": [
+              "chunk_84834155400e882fc392"
+            ]
+          }
+        },
+        {
+          "id": "text_91a6df4edf3b7aa9ccea",
+          "standard_id": "IS 5120",
+          "page_number": 1,
+          "bbox": {
+            "x0": 78.0,
+            "y0": 127.29997253417969,
+            "x1": 517.2755126953125,
+            "y1": 404.9899597167969
+          },
+          "type": "text",
+          "content": "Introduction\nAn engineer buying 100 industrial pumps uses Indian Standard (IS) codes as a mandatory\ntechnical checklist. These codes define manufacturing, performance, safety, and testing\nrequirements that every pump must satisfy before delivery. 1. Specifying the Exact Pump Type in\nthe Tender\n• IS 5120: Technical requirements for general-purpose centrifugal pumps.\n• IS 1520: Horizontal centrifugal pumps for agricultural and water supply applications.\n• IS 8034: Submersible pump sets for clear, cold water.\n• IS 5600: Sewage pumps. 2. Ensuring Electrical and Motor Compatibility\n• IS 12615: Energy-efficient motors (IE2/IE3 classes).\n• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and\nTesting\nUsing IS 9137 or IS 10981, the engineer requires:\n• Hydrostatic test certificates.\n• Performance curve testing for flow rate and pressure head verification. 4. Piping and Installation\nStandards\n• IS 1538: Cast iron flange dimensions for pump connections.\n• IS 2062: Structural steel requirements for pump support frames. Summary Checklist\nThe purchase order may include:\n“All 100 units must strictly comply with IS 5120 for construction, IS 9137 for performance testing,\nand be driven by motors conforming to IS 12615.” Application Note\nThe exact IS codes may vary depending on the fluid being pumped, such as clear water, chemicals,\nsewage, or oil.",
+          "provenance": {
+            "source_file": "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+            "standard_id": "IS 5120",
+            "page_number": 1,
+            "section_numbers": [],
+            "chunk_ids": [
+              "chunk_84834155400e882fc392"
+            ]
+          }
+        }
+      ],
+      "tables": [],
+      "figures": []
+    }
+  ],
+  "sections": [
+    {
+      "section_number": null,
+      "title": "Document preamble",
+      "level": 0,
+      "page_start": 1,
+      "page_end": 1,
+      "text": "IS Codes for Industrial Pumps – Engineer Purchasing Checklist Introduction An engineer buying 100 industrial pumps uses Indian Standard (IS) codes as a mandatory technical checklist. These codes define manufacturing, performance, safety, and testing requirements that every pump must satisfy before delivery. 1. Specifying the Exact Pump Type in the Tender\n• IS 5120: Technical requirements for general-purpose centrifugal pumps.\n• IS 1520: Horizontal centrifugal pumps for agricultural and water supply applications.\n• IS 8034: Submersible pump sets for clear, cold water.\n• IS 5600: Sewage pumps. 2. Ensuring Electrical and Motor Compatibility\n• IS 12615: Energy-efficient motors (IE2/IE3 classes).\n• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and Testing Using IS 9137 or IS 10981, the engineer requires:\n• Hydrostatic test certificates.\n• Performance curve testing for flow rate and pressure head verification. 4. Piping and Installation Standards\n• IS 1538: Cast iron flange dimensions for pump connections.\n• IS 2062: Structural steel requirements for pump support frames. Summary Checklist The purchase order may include:\n“All 100 units must strictly comply with IS 5120 for construction, IS 9137 for performance testing, and be driven by motors conforming to IS 12615.” Application Note The exact IS codes may vary depending on the fluid being pumped, such as clear water, chemicals, sewage, or oil."
+    }
+  ],
+  "relationships": [
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 1520",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 1520: Horizontal centrifugal pumps for agricultural and water supply applications."
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 8034",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 8034: Submersible pump sets for clear, cold water."
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 5600",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 5600: Sewage pumps. 2. Ensuring Electrical and Motor Compatibility"
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 12615",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 12615: Energy-efficient motors (IE2/IE3 classes)."
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 325",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and Testing Using IS 9137 or IS 10981, the engineer requires:"
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 9137",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and Testing Using IS 9137 or IS 10981, the engineer requires:"
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 10981",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and Testing Using IS 9137 or IS 10981, the engineer requires:"
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 1538",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 1538: Cast iron flange dimensions for pump connections."
+    },
+    {
+      "source_standard_number": "IS 5120",
+      "target_standard_number": "IS 2062",
+      "relationship_type": "related_to",
+      "page_number": 1,
+      "evidence_text": "• IS 2062: Structural steel requirements for pump support frames. Summary Checklist The purchase order may include:"
+    }
+  ],
+  "chunks": [
+    {
+      "chunk_id": "chunk_84834155400e882fc392",
+      "standard_number": "IS 5120",
+      "source_file": "IS_Codes_for_Industrial_Pumps_Engineer_Checklist.pdf",
+      "page_start": 1,
+      "page_end": 1,
+      "section_number": null,
+      "section_title": "Document preamble",
+      "text": "IS Codes for Industrial Pumps – Engineer Purchasing Checklist Introduction An engineer buying 100 industrial pumps uses Indian Standard (IS) codes as a mandatory technical checklist. These codes define manufacturing, performance, safety, and testing requirements that every pump must satisfy before delivery. 1. Specifying the Exact Pump Type in the Tender\n• IS 5120: Technical requirements for general-purpose centrifugal pumps.\n• IS 1520: Horizontal centrifugal pumps for agricultural and water supply applications.\n• IS 8034: Submersible pump sets for clear, cold water.\n• IS 5600: Sewage pumps. 2. Ensuring Electrical and Motor Compatibility\n• IS 12615: Energy-efficient motors (IE2/IE3 classes).\n• IS 325: Performance standards for three-phase induction motors. 3. Mandatory Inspection and Testing Using IS 9137 or IS 10981, the engineer requires:\n• Hydrostatic test certificates.\n• Performance curve testing for flow rate and pressure head verification. 4. Piping and Installation Standards\n• IS 1538: Cast iron flange dimensions for pump connections.\n• IS 2062: Structural steel requirements for pump support frames. Summary Checklist The purchase order may include:\n“All 100 units must strictly comply with IS 5120 for construction, IS 9137 for performance testing, and be driven by motors conforming to IS 12615.” Application Note The exact IS codes may vary depending on the fluid being pumped, such as clear water, chemicals, sewage, or oil.",
+      "element_ids": [
+        "text_abbea0fd36a40c852da5",
+        "text_6058df9f0096bcd8daa1",
+        "text_91a6df4edf3b7aa9ccea"
+      ]
+    }
+  ],
+  "validation": [],
+  "raw_asset_directory": ".tmp\\truth_rebuild\\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.assets"
+}
