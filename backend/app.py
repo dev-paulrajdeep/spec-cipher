@@ -184,7 +184,7 @@ def analyse_input():
         "result_state": "recommendations" if run.recommendations else "no_match",
         "user_input": user_input,
         "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
-        "retrieved_match_count": len(results),
+        "retrieved_candidate_count": len(results),
         "highlight_terms": _highlight_terms(user_input),
         "recommendations": recommendations,
         "warnings": [] if run.recommendations else [

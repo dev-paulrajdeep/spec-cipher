@@ -17,7 +17,7 @@ The response is grouped at standard level and contains at most five recommendati
   "status": "success",
   "result_state": "recommendations",
   "user_input": "industrial pump construction requirements",
-  "retrieved_match_count": 1,
+  "retrieved_candidate_count": 1,
   "recommendations": [
     {
       "standard_number": "IS 5120",

@@ -159,12 +159,12 @@ class ResultsManager {
             </div>
 
             <div class="spec-parameter-cell">
-                <div class="param-key">
-                    Retrieved matches
+                            <div class="param-key">
+                                Retrieved candidates
                 </div>
 
                 <div class="param-val">
-                    ${response?.retrieved_match_count ?? recommendations.length}
+                    ${response?.retrieved_candidate_count ?? recommendations.length}
                 </div>
             </div>
         `;
@@ -251,12 +251,12 @@ class ResultsManager {
                 <div class="empty-state-box"
                      style="padding:1.5rem;">
                     <div class="empty-state-title">
-                        No matches found
+                        No sufficiently supported standard found
                     </div>
 
                     <div class="empty-state-desc">
-                        The retrieval system did not return
-                        any matching document chunks.
+                        Retrieved candidates did not meet the
+                        evidence and applicability thresholds.
                     </div>
                 </div>
             `;
