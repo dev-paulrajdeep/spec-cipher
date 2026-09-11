@@ -103,7 +103,7 @@ def stable_recommendation_fields(payload: dict[str, object]) -> dict[str, object
     return {
         key: value
         for key, value in payload.items()
-        if key not in {"explanation", "warnings"}
+        if key not in {"explanation", "explanation_text", "warnings"}
     }
 
 
@@ -131,7 +131,7 @@ def test_endpoint_adds_explanation_without_changing_recommendation_fields(
     assert stable_recommendation_fields(payload) == stable_recommendation_fields(source.to_dict())
     assert payload["warnings"] == source.to_dict()["warnings"]
     assert payload["explanation"] == explanation
-    assert retriever.calls == [("waterproofing compound for concrete", 30)]
+    assert retriever.calls == [("waterproofing compound for concrete", 500)]
     assert reasoner.calls == [("waterproofing compound for concrete", source)]
 
 
@@ -164,8 +164,9 @@ def test_empty_recommendations_do_not_invoke_qwen(monkeypatch: pytest.MonkeyPatc
     assert response.status_code == 200
     assert response.get_json()["recommendations"] == []
     assert response.get_json()["warnings"] == [
-        "No suitable standard was found for this requirement."
+        "No sufficiently supported standard was found for this requirement."
     ]
+    assert response.get_json()["result_state"] == "no_match"
     assert reasoner.calls == []
 
 

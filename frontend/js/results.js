@@ -108,12 +108,12 @@ class ResultsManager {
 
         if (timestampEl) {
             const date =
-                meta.timestamp
-                    ? new Date(meta.timestamp)
+                response?.analysis_timestamp || meta.timestamp
+                    ? new Date(response?.analysis_timestamp || meta.timestamp)
                     : new Date();
 
             timestampEl.textContent =
-                `Analysis • ${date.toLocaleString()}`;
+                    `Analysis • ${date.toLocaleDateString()} · ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         }
 
         if (previewEl) {
@@ -164,7 +164,7 @@ class ResultsManager {
                 </div>
 
                 <div class="param-val">
-                    ${recommendations.length}
+                    ${response?.retrieved_match_count ?? recommendations.length}
                 </div>
             </div>
         `;
@@ -243,7 +243,7 @@ class ResultsManager {
 
         if (countText) {
             countText.textContent =
-                `${items.length} recommendation${items.length === 1 ? '' : 's'}`;
+                `${items.length} recommended standard${items.length === 1 ? '' : 's'}`;
         }
 
         if (items.length === 0) {
@@ -296,28 +296,17 @@ class ResultsManager {
             standard?.section_title ||
             'Standard title not available';
 
-        const sectionNumber =
-            standard?.section_number ||
-            '—';
-
-        const sectionTitle =
-            standard?.section_title ||
-            standard?.evidence?.[0]?.section_title ||
-            'Section not available';
-
-        const text =
-            standard?.text ||
-            standard?.evidence?.[0]?.text ||
-            'No retrieved text available.';
+        const sourceEvidence = standard?.source_evidence || {};
+        const evidence = standard?.evidence?.[0] || {};
+        const sectionNumber = sourceEvidence.section_number || evidence.section_number;
+        const sectionTitle = sourceEvidence.section_name || evidence.section_title;
+        const text = standard?.extracted_content || evidence.text || '';
 
         const score =
             this.formatScore(
                 standard?.score ??
                 standard?.final_score
             );
-
-        const evidence =
-            standard?.evidence?.[0] || {};
 
         const sourceFile =
             standard?.source?.source_file ||
@@ -338,62 +327,19 @@ class ResultsManager {
                 pageEnd
             );
 
-        const preview =
-            this.createPreview(text);
-
-        const explanation =
-            standard?.explanation;
-
-        const relatedStandards =
-            Array.isArray(standard?.related_standards)
-                ? standard.related_standards
+        const explanation = standard?.explanation_text || standard?.explanation?.summary || standard?.reason;
+        const relatedTopics =
+            Array.isArray(standard?.related_topics)
+                ? standard.related_topics
                 : [];
-
-        const explanationMarkup =
-            explanation && typeof explanation === 'object'
-                ? `
-                    <div data-testid="recommendation-explanation">
-                        <div class="reason-box-title">
-                            Explanation
-                        </div>
-
-                        <div style="color:var(--text-secondary); line-height:1.55;">
-                            ${window.ui.escapeHtml(explanation.summary || '')}
-                        </div>
-
-                        ${Array.isArray(explanation.key_points) && explanation.key_points.length > 0 ? `
-                            <ul class="reason-bullets">
-                                ${explanation.key_points.map((point) => `<li>${window.ui.escapeHtml(point)}</li>`).join('')}
-                            </ul>
-                        ` : ''}
-
-                        ${Array.isArray(explanation.caveats) && explanation.caveats.length > 0 ? `
-                            <div data-testid="recommendation-caveats">
-                                <div class="reason-box-title">
-                                    Caveats
-                                </div>
-                                <ul class="reason-bullets">
-                                    ${explanation.caveats.map((caveat) => `<li>${window.ui.escapeHtml(caveat)}</li>`).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-                    </div>
-                `
-                : '';
-
-        const relatedMarkup =
-            relatedStandards.length > 0
-                ? `
-                    <div data-testid="related-standards">
-                        <div class="reason-box-title">
-                            Related standards
-                        </div>
-                        <ul class="reason-bullets">
-                            ${relatedStandards.map((related) => `<li>${window.ui.escapeHtml(related.standard_number || 'Related standard')}</li>`).join('')}
-                        </ul>
-                    </div>
-                `
-                : '';
+        const category = standard?.category || {};
+        const categoryText = category.code || category.name
+            ? `${category.code || ''}${category.code && category.name ? ' · ' : ''}${category.name || ''}`
+            : 'Not available in source metadata';
+        const titleMarkup = this.highlightTerms(title);
+        const relatedMarkup = relatedTopics.length
+            ? relatedTopics.map((topic) => `<li>${window.ui.escapeHtml(topic)}</li>`).join('')
+            : '<li>No related topics recorded</li>';
 
         card.innerHTML = `
             <div class="record-main-row">
@@ -411,26 +357,17 @@ class ResultsManager {
                         </span>
 
                         <span class="status-badge active">
-                            Retrieved
+                            Recommended
                         </span>
 
                     </div>
 
                     <div class="standard-title-text">
-                        ${window.ui.escapeHtml(title)}
+                        ${titleMarkup}
                     </div>
 
-                    <div class="standard-meta-chips">
-
-                        <span>
-                            Section:
-                            ${window.ui.escapeHtml(sectionNumber)}
-                        </span>
-
-                        <span>
-                            ${window.ui.escapeHtml(sectionTitle)}
-                        </span>
-
+                    <div class="standard-category-line">
+                        Category: ${window.ui.escapeHtml(standard?.category_breadcrumb || categoryText)}
                     </div>
 
                 </div>
@@ -439,7 +376,7 @@ class ResultsManager {
 
                     <div class="metric-item">
                         <span class="metric-label">
-                            Similarity
+                            Relevance
                         </span>
 
                         <span class="metric-score-val">
@@ -465,7 +402,7 @@ class ResultsManager {
                         class="btn btn-outline btn-sm"
                         type="button"
                         data-action="details">
-                        View Retrieved Text
+                        View Source Text
                     </button>
 
                 </div>
@@ -473,48 +410,44 @@ class ResultsManager {
             </div>
 
             <div class="record-reasoning-panel">
-
-                <div>
-
-                    <div class="reason-box-title">
-                        Retrieved content
-                    </div>
-
-                    <div style="
-                        color:var(--text-secondary);
-                        line-height:1.55;
-                    ">
-                        ${window.ui.escapeHtml(preview)}
-                    </div>
-
-                </div>
-
-                <div>
-
-                    <div class="reason-box-title">
-                        Source
-                    </div>
-
-                    <div style="
-                        color:var(--text-secondary);
-                        line-height:1.55;
-                    ">
-                        <div>
-                            ${window.ui.escapeHtml(sourceFile)}
+                <div class="record-evidence-column">
+                    <div class="evidence-block">
+                        <div class="reason-box-title">Source evidence</div>
+                        <div class="evidence-lines">
+                            <div>${window.ui.escapeHtml(sourceEvidence.document_title || title)}</div>
+                            <div>${window.ui.escapeHtml(sourceEvidence.edition || 'Edition not available')}</div>
+                            <div>${window.ui.escapeHtml(sourceEvidence.part_volume || 'Part/volume not available')}</div>
+                            <div>Page ${window.ui.escapeHtml(pages)}</div>
+                            <div>${window.ui.escapeHtml(sectionNumber || 'Section not available')}${sectionTitle ? ` · ${window.ui.escapeHtml(sectionTitle)}` : ''}</div>
                         </div>
-
-                        <div>
-                            Pages:
-                            ${window.ui.escapeHtml(pages)}
-                        </div>
-
                     </div>
-
+                    <div class="evidence-block">
+                        <div class="reason-box-title">Extracted content</div>
+                        <div class="evidence-content">${window.ui.escapeHtml(text || 'Retrieved text is not available.')}</div>
+                    </div>
+                    <div class="evidence-block">
+                        <div class="reason-box-title">Context</div>
+                        <div class="evidence-content">${window.ui.escapeHtml(standard?.context || 'Context is not available in source metadata.')}</div>
+                    </div>
+                    <div class="evidence-block">
+                        <div class="reason-box-title">Explanation</div>
+                        <div class="evidence-content">${window.ui.escapeHtml(explanation || 'Explanation is not available.')}</div>
+                    </div>
                 </div>
-
-                ${explanationMarkup}
-
-                ${relatedMarkup}
+                <aside class="record-source-column">
+                    <div class="evidence-block">
+                        <div class="reason-box-title">Source</div>
+                        <div class="evidence-content">${window.ui.escapeHtml(sourceFile)}<br/>Page ${window.ui.escapeHtml(pages)}</div>
+                    </div>
+                    <div class="evidence-block">
+                        <div class="reason-box-title">Category (from source)</div>
+                        <div class="evidence-content">${window.ui.escapeHtml(categoryText)}</div>
+                    </div>
+                    <div class="evidence-block" data-testid="related-topics">
+                        <div class="reason-box-title">Related topics</div>
+                        <ul class="reason-bullets">${relatedMarkup}</ul>
+                    </div>
+                </aside>
 
             </div>
         `;
@@ -602,6 +535,18 @@ class ResultsManager {
             safeText.substring(0, 280) +
             '...'
         );
+    }
+
+    highlightTerms(title) {
+        const escaped = window.ui.escapeHtml(title || 'Standard title not available');
+        const terms = Array.isArray(this.currentResponse?.highlight_terms)
+            ? this.currentResponse.highlight_terms.filter(Boolean)
+            : [];
+        if (!terms.length) {
+            return escaped;
+        }
+        const pattern = terms.map((term) => String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        return escaped.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>');
     }
 }
 

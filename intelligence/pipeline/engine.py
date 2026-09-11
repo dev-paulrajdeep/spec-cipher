@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from dataclasses import replace
 import logging
+import re
 from time import perf_counter
 
 from intelligence.applicability import ApplicabilityAssessor, DeterministicRequirementInterpreter, RequirementInterpreter
@@ -56,7 +58,7 @@ class IntelligenceEngine:
     def recommend(self, requirement: str, candidates: tuple[RetrievalResult, ...] | list[RetrievalResult]) -> IntelligenceRun:
         """Produce ranked standard recommendations while preserving all diagnostic candidates."""
         metrics = PipelineMetrics()
-        source = tuple(candidates)
+        source = self._promote_explicit_matches(requirement, tuple(candidates))
         started = perf_counter()
         features = self.interpreter.interpret(requirement)
         metrics.record("requirement_interpretation", started, 1)
@@ -120,14 +122,19 @@ class IntelligenceEngine:
             ))
         metrics.record("applicability", started, len(scored))
 
-        recommendations = self._recommendations(tuple(scored), metrics)
+        recommendations = self._recommendations(tuple(scored), metrics, requirement)
         logger.info(
             "Intelligence pipeline completed: candidates=%d admissible=%d recommendations=%d",
             len(source), len(admissible), len(recommendations),
         )
         return IntelligenceRun(recommendations, tuple(scored), metrics)
 
-    def _recommendations(self, candidates: tuple[ScoredCandidate, ...], metrics: PipelineMetrics) -> tuple[Recommendation, ...]:
+    def _recommendations(
+        self,
+        candidates: tuple[ScoredCandidate, ...],
+        metrics: PipelineMetrics,
+        requirement: str,
+    ) -> tuple[Recommendation, ...]:
         eligible = [
             item for item in candidates
             if canonical_is_code(item.candidate.chunk.standard_number)
@@ -168,9 +175,10 @@ class IntelligenceEngine:
             )[0]
             context = self.knowledge_base.context_for(standard)
             evidence = self.evidence_locator.select(tuple(group), self.config.evidence_limit)
+            title = context.metadata.title if context.metadata else self._explicit_title(standard, primary.candidate.chunk.text, requirement)
             output.append(Recommendation(
                 standard_number=standard,
-                title=context.metadata.title if context.metadata else None,
+                title=title,
                 final_score=primary.final_score or 0.0,
                 rank=rank,
                 constraint_result=primary.constraint_result,
@@ -184,6 +192,46 @@ class IntelligenceEngine:
             ))
         metrics.record("evidence", evidence_started, sum(len(item.evidence) for item in output))
         return tuple(output)
+
+    @staticmethod
+    def _promote_explicit_matches(
+        requirement: str,
+        candidates: tuple[RetrievalResult, ...],
+    ) -> tuple[RetrievalResult, ...]:
+        """Treat an exact query phrase cited beside a standard code as evidence for that code."""
+        phrase = re.escape(" ".join(requirement.split()))
+        pattern = re.compile(
+            rf"\b((?:IS|SP)\s*\d{{1,5}}\s*:\s*\d{{4}})\s+{phrase}(?=\s|$)",
+            re.IGNORECASE,
+        )
+        promoted: list[RetrievalResult] = list(candidates)
+        seen = {item.chunk.chunk_id for item in candidates}
+        for candidate in candidates:
+            match = pattern.search(" ".join(candidate.chunk.text.split()))
+            if not match:
+                continue
+            standard = canonical_is_code(match.group(1))
+            if not standard:
+                continue
+            promoted_chunk = replace(candidate.chunk, standard_number=standard)
+            promoted_id = f"{candidate.chunk.chunk_id}:{standard}"
+            promoted_chunk = replace(promoted_chunk, chunk_id=promoted_id)
+            if promoted_id not in seen:
+                promoted.append(replace(candidate, chunk=promoted_chunk))
+                seen.add(promoted_id)
+        return tuple(promoted)
+
+    @staticmethod
+    def _explicit_title(standard: str, text: str, requirement: str) -> str | None:
+        phrase = re.escape(" ".join(requirement.split()))
+        standard_pattern = (
+            re.escape(standard)
+            .replace("\\ ", r"\s*")
+            .replace(":", r"\s*:\s*")
+        )
+        if re.search(rf"\b{standard_pattern}\s+{phrase}(?=\s|$)", " ".join(text.split()), re.IGNORECASE):
+            return requirement
+        return None
 
     def _configured_reranker(self) -> Reranker:
         if self.config.reranker == "cross_encoder":

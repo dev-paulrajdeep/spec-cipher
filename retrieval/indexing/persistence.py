@@ -97,8 +97,15 @@ class PersistedIndex:
 def corpus_fingerprint(chunks: tuple[DocumentChunk, ...]) -> str:
     """Stable fingerprint used to identify exactly which corpus was indexed."""
     digest = hashlib.sha256()
-    for chunk in chunks:
-        digest.update(json.dumps(asdict(chunk), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    records = sorted(
+        (
+            chunk.chunk_id,
+            json.dumps(asdict(chunk), ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+        for chunk in chunks
+    )
+    for _, record in records:
+        digest.update(record.encode("utf-8"))
         digest.update(b"\n")
     return digest.hexdigest()
 

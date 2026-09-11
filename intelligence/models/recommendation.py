@@ -28,18 +28,31 @@ class Recommendation:
     def to_dict(self) -> dict[str, Any]:
         """Return the complete recommendation and its source-backed details."""
         primary_evidence = self.evidence[0] if self.evidence else None
+        reason = (
+            f"Retrieved evidence from {primary_evidence.source_file}, "
+            f"page {primary_evidence.page_start}."
+            if primary_evidence
+            else "Recommendation is supported by retrieved source evidence."
+        )
+        source_evidence = None
+        if primary_evidence:
+            source_evidence = {
+                "document_title": self.title,
+                "edition": self.version,
+                "part_volume": None,
+                "page_start": primary_evidence.page_start,
+                "page_end": primary_evidence.page_end,
+                "section_number": primary_evidence.section_number,
+                "section_name": primary_evidence.section_title,
+            }
         return {
             "is_code": self.standard_number,
             "standard_number": self.standard_number,
             "title": self.title,
             "final_score": self.final_score,
             "score": self.final_score,
-            "reason": (
-                f"Retrieved evidence from {primary_evidence.source_file}, "
-                f"page {primary_evidence.page_start}."
-                if primary_evidence
-                else "Recommendation is supported by retrieved source evidence."
-            ),
+            "reason": reason,
+            "explanation_text": reason,
             "source": (
                 {
                     "source_file": primary_evidence.source_file,
@@ -50,6 +63,25 @@ class Recommendation:
                 if primary_evidence
                 else None
             ),
+            "source_evidence": source_evidence,
+            "extracted_content": primary_evidence.text if primary_evidence else None,
+            "context": (
+                f"Retrieved from {primary_evidence.source_file}, "
+                f"page {primary_evidence.page_start}."
+                if primary_evidence
+                else None
+            ),
+            "category": {
+                "from_source": primary_evidence.source_file if primary_evidence else None,
+                "code": primary_evidence.section_number if primary_evidence else None,
+                "name": primary_evidence.section_title if primary_evidence else None,
+            },
+            "category_breadcrumb": (
+                f"{primary_evidence.section_number} → {primary_evidence.section_title}"
+                if primary_evidence and primary_evidence.section_number and primary_evidence.section_title
+                else None
+            ),
+            "related_topics": [item.standard_number for item in self.related_standards],
             "rank": self.rank,
             "status": self.status,
             "version": self.version,

@@ -3,6 +3,7 @@ import atexit
 import os
 import sys
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 # CHANGING ROOT PATH THAT PYTHON USES
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -10,9 +11,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from retrieval.service import RetrievalService, RetrievalUnavailableError
 from retrieval.indexing import IndexCompatibilityError 
 from retrieval.config import RetrievalConfig
+from retrieval.corpus_config import CANONICAL_CORPUS_PATH
 from intelligence.pipeline import IntelligenceEngine
 from intelligence.relationships import CorpusKnowledgeBase
 from backend.qwen_reasoning import QwenReasoner
+from backend.preflight import PreflightError, validate_bundle
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -27,28 +30,51 @@ FRONTEND_DIR = os.path.join(app.root_path, "../frontend")
 
 # Generated retrieval bundle; build it before starting Flask.
 RETRIEVAL_INDEX_DIR = Path(app.root_path).parent / "retrieval-index"
-retriever = RetrievalService.from_persisted(
-    RETRIEVAL_INDEX_DIR,
-    config=RetrievalConfig(reranker_enabled=True, sequential_model_lifecycle=False),
+CANONICAL_CORPUS_FILE = CANONICAL_CORPUS_PATH
+embedding_device = os.getenv("SPEC_CIPHER_EMBEDDING_DEVICE", "auto").strip().lower()
+allow_cpu_fallback = os.getenv("SPEC_CIPHER_ALLOW_CPU_FALLBACK", "1") == "1"
+reranker_enabled = os.getenv("SPEC_CIPHER_RERANKER_ENABLED", "0") == "1"
+logging.info(
+    "Loading retrieval service: device=%s allow_cpu_fallback=%s reranker_enabled=%s",
+    embedding_device,
+    allow_cpu_fallback,
+    reranker_enabled,
 )
+try:
+    validate_bundle(
+        RETRIEVAL_INDEX_DIR,
+        CANONICAL_CORPUS_FILE,
+        check_ollama=os.getenv("SPEC_CIPHER_PREFLIGHT_OLLAMA", "0") == "1",
+        ollama_host=os.getenv("QWEN_OLLAMA_HOST", "http://localhost:11434"),
+    )
+    retriever = RetrievalService.from_persisted(
+        RETRIEVAL_INDEX_DIR,
+        config=RetrievalConfig(
+            embedding_device=embedding_device,
+            allow_cpu_fallback=allow_cpu_fallback,
+            reranker_enabled=reranker_enabled,
+            sequential_model_lifecycle=False,
+            corpus_path=CANONICAL_CORPUS_FILE,
+        ),
+    )
+except (PreflightError, FileNotFoundError, RuntimeError) as error:
+    raise RuntimeError(
+        "SpecCipher startup preflight failed. Check the retrieval bundle, configured corpus, "
+        "embedding model, and CPU/GPU settings."
+    ) from error
 close_retriever = getattr(retriever, "close", None)
 if callable(close_retriever):
     atexit.register(close_retriever)
 
-CANONICAL_CORPUS_PATHS = (
-    PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.json",
-    PROJECT_ROOT / ".tmp" / "sp7_validation" / "SP 7_2026.json",
-)
-canonical_corpus_file = next((p for p in CANONICAL_CORPUS_PATHS if p.exists()), None)
 knowledge_base = (
-    CorpusKnowledgeBase.from_canonical_json((canonical_corpus_file,))
-    if canonical_corpus_file
+    CorpusKnowledgeBase.from_canonical_json((CANONICAL_CORPUS_FILE,))
+    if CANONICAL_CORPUS_FILE.exists()
     else CorpusKnowledgeBase()
 )
 intelligence = IntelligenceEngine(knowledge_base=knowledge_base)
 qwen_reasoner = QwenReasoner()
 
-RETRIEVAL_CANDIDATE_K = 30
+RETRIEVAL_CANDIDATE_K = 500
 FINAL_TOP_K = 5
 
 
@@ -124,6 +150,7 @@ def analyse_input():
         logging.exception("Retrieval service unavailable")
         return jsonify({
         "status": "error",
+        "result_state": "unavailable",
         "message": "Retrieval service unavailable."
         }), 503
 
@@ -131,6 +158,7 @@ def analyse_input():
         logging.exception("Retrieval index is incompatible")
         return jsonify({
         "status": "error",
+        "result_state": "unavailable",
         "message": "Retrieval service unavailable."
         }), 503
 
@@ -138,6 +166,7 @@ def analyse_input():
         logging.exception("Recommendation pipeline failed")
         return jsonify({
             "status": "error",
+            "result_state": "unavailable",
             "message": "Recommendation service unavailable.",
         }), 503
 
@@ -152,10 +181,14 @@ def analyse_input():
 
     return jsonify({
         "status": "success",
+        "result_state": "recommendations" if run.recommendations else "no_match",
         "user_input": user_input,
+        "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
+        "retrieved_match_count": len(results),
+        "highlight_terms": _highlight_terms(user_input),
         "recommendations": recommendations,
         "warnings": [] if run.recommendations else [
-            "No suitable standard was found for this requirement."
+            "No sufficiently supported standard was found for this requirement."
         ],
     })
 
@@ -196,10 +229,25 @@ def _serialize_recommendations(user_input, recommendations):
         payload = recommendation.to_dict()
         outcome = qwen_reasoner.explain(user_input, recommendation)
         payload["explanation"] = outcome.explanation
+        if isinstance(outcome.explanation, dict) and outcome.explanation.get("summary"):
+            payload["explanation_text"] = outcome.explanation["summary"]
         if outcome.warning:
             payload["warnings"].append(outcome.warning)
         payloads.append(payload)
     return payloads
+
+
+def _highlight_terms(user_input):
+    """Return meaningful query tokens for client-side title highlighting."""
+    stop_words = {
+        "a", "an", "and", "for", "in", "of", "on", "the", "to", "with",
+    }
+    return list(dict.fromkeys(
+        word.strip(".,:;()[]{}")
+        for word in user_input.split()
+        if len(word.strip(".,:;()[]{}")) > 2
+        and word.strip(".,:;()[]{}").lower() not in stop_words
+    ))
 
 # --------------------------------------------------
 # Run Flask

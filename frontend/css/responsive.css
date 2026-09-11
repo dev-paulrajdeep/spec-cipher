@@ -27,6 +27,13 @@
     padding-left: calc(40px + 1.85rem);
   }
 
+  .record-source-column {
+    border-left: none;
+    border-top: 1px solid var(--border-default);
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+
   .record-warning-banner {
     padding-left: calc(40px + 1.85rem);
   }

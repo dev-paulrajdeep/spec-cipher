@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from retrieval import RetrievalConfig, RetrievalPipeline
+from retrieval.corpus_config import CANONICAL_CORPUS_PATH
 
 
 def main() -> None:
@@ -18,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=PROJECT_ROOT / "corpus" / "data" / "SP 7_2026.json",
+        default=CANONICAL_CORPUS_PATH,
         help="canonical corpus JSON or retrieval-ready JSONL artifact",
     )
     parser.add_argument(

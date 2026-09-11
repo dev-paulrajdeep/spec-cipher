@@ -69,6 +69,7 @@ class DetailsManager {
 
         const title =
             standard.title ||
+            standard.source_evidence?.document_title ||
             standard.section_title ||
             'Retrieved standard match';
 
@@ -197,6 +198,8 @@ class DetailsManager {
     renderSource(standard) {
         const source =
             standard.source || {};
+        const sourceEvidence =
+            standard.source_evidence || {};
 
         const matchedList =
             document.getElementById(
@@ -215,6 +218,14 @@ class DetailsManager {
             items.push(
                 `Source file: ${source.source_file}`
             );
+        }
+
+        if (sourceEvidence.edition) {
+            items.push(`Edition: ${sourceEvidence.edition}`);
+        }
+
+        if (sourceEvidence.section_name) {
+            items.push(`Section: ${sourceEvidence.section_name}`);
         }
 
         if (source.chunk_id) {
@@ -287,6 +298,7 @@ class DetailsManager {
         evidenceList.innerHTML = '';
 
         const text =
+            standard.extracted_content ||
             standard.text ||
             '';
 

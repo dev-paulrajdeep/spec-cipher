@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -10,6 +13,7 @@ from retrieval.config import RetrievalConfig
 from retrieval.corpus_loader import CorpusChunkLoadError, CorpusChunkLoader
 from retrieval.evaluation import EvaluationCase, evaluate, mrr_at_k, precision_at_k, recall_at_k
 from retrieval.indexing import FaissIndex, IndexCompatibilityError
+from retrieval.indexing.persistence import corpus_fingerprint
 from retrieval.models import RetrievalResult, group_results_by_standard
 from retrieval.pipeline import RetrievalPipeline
 from retrieval.service import RetrievalService, RetrievalUnavailableError
@@ -263,6 +267,62 @@ def test_index_persistence_reload_and_configuration_compatibility(tmp_path, enco
     )
     with pytest.raises(IndexCompatibilityError, match="different embedding model"):
         incompatible.load(tmp_path / "index")
+
+
+def test_index_persistence_loads_across_processes_with_different_hash_seeds(tmp_path, chunks) -> None:
+    index_directory = tmp_path / "index"
+    build_script = """
+import sys
+import numpy as np
+from corpus.models import DocumentChunk
+from retrieval.indexing import FaissIndex, IndexMetadata, IndexPersistence
+
+chunks = (
+    DocumentChunk("z", "STD", "source.pdf", 2, 2, "1", "Scope", "second"),
+    DocumentChunk("a", "STD", "source.pdf", 1, 1, "1", "Scope", "first"),
+)
+index = FaissIndex(2)
+index.add(np.asarray([[0.0, 1.0], [1.0, 0.0]], dtype=np.float32), [chunk.chunk_id for chunk in chunks])
+metadata = IndexMetadata.create(
+    embedding_backend="custom",
+    embedding_model="test-encoder",
+    embedding_model_version="test",
+    embedding_dimension=2,
+    normalize_embeddings=True,
+    corpus_schema_version="1.0",
+    chunks=chunks,
+)
+IndexPersistence().save(sys.argv[1], index, chunks, metadata)
+"""
+    load_script = """
+import sys
+from retrieval.indexing import IndexPersistence
+
+IndexPersistence().load(
+    sys.argv[1],
+    expected_embedding_backend="custom",
+    expected_embedding_model="test-encoder",
+    expected_embedding_model_version="test",
+    expected_dimension=2,
+    expected_normalize_embeddings=True,
+)
+"""
+    environment = os.environ.copy()
+    build = subprocess.run(
+        [sys.executable, "-c", build_script, str(index_directory)],
+        env={**environment, "PYTHONHASHSEED": "1"},
+        capture_output=True,
+        text=True,
+    )
+    assert build.returncode == 0, build.stderr
+    load = subprocess.run(
+        [sys.executable, "-c", load_script, str(index_directory)],
+        env={**environment, "PYTHONHASHSEED": "2"},
+        capture_output=True,
+        text=True,
+    )
+    assert load.returncode == 0, load.stderr
+    assert corpus_fingerprint(chunks) == corpus_fingerprint(tuple(reversed(chunks)))
 
 
 def test_load_rejects_missing_or_corrupted_persistence_artifacts(tmp_path, encoder, chunks) -> None:

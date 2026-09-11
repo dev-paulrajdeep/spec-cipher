@@ -25,7 +25,8 @@ def canonical_is_code(value: str | None) -> str | None:
     year = match.group("year")
     code = f"IS {number}"
     if part:
-        code += f" (Part {" ".join(part.split())})"
+        normalized_part = " ".join(part.split())
+        code += f" (Part {normalized_part})"
     if year:
         code += f":{year}"
     return code

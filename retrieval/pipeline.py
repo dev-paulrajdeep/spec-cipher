@@ -11,6 +11,7 @@ from retrieval.config import RetrievalConfig
 from retrieval.corpus_loader import CorpusChunkLoader, LoadedCorpus
 from retrieval.embeddings import EmbeddingEncoder, SentenceTransformerEncoder
 from retrieval.indexing import FaissIndex, IndexMetadata, IndexPersistence
+from retrieval.indexing.persistence import corpus_fingerprint
 from retrieval.search import SemanticRetriever
 from retrieval.reranking import BGEReranker, CandidateReranker
 
@@ -105,6 +106,14 @@ class RetrievalPipeline:
             expected_dimension=self.encoder.dimension,
             expected_normalize_embeddings=self.encoder.normalize_embeddings,
         )
+        if self.config.corpus_path is not None:
+            loaded = self.loader.load(self.config.corpus_path)
+            expected_fingerprint = corpus_fingerprint(loaded.chunks)
+            if expected_fingerprint != bundle.metadata.corpus_fingerprint:
+                raise IndexCompatibilityError(
+                    "Persisted index corpus does not match configured corpus: "
+                    f"{self.config.corpus_path}"
+                )
         logger.info(
             "Loaded semantic index: chunks=%d model=%s dimension=%d index_type=%s",
             bundle.metadata.chunk_count, bundle.metadata.embedding_model,
