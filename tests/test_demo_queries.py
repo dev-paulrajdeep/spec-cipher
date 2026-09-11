@@ -7,6 +7,12 @@ import sys
 from backend.qwen_reasoning import ExplanationOutcome
 
 
+@pytest.fixture(scope="module")
+def app_module():
+    sys.modules.pop("backend.app", None)
+    return importlib.import_module("backend.app")
+
+
 @pytest.mark.parametrize(
     ("query", "expected_state"),
     (
@@ -20,11 +26,9 @@ from backend.qwen_reasoning import ExplanationOutcome
 def test_demo_queries_cover_recommendation_and_no_match_paths(
     query: str,
     expected_state: str,
+    app_module,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    sys.modules.pop("backend.app", None)
-    app_module = importlib.import_module("backend.app")
-
     monkeypatch.setattr(
         app_module.qwen_reasoner,
         "explain",

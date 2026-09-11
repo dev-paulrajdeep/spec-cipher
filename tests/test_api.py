@@ -167,6 +167,7 @@ def test_empty_recommendations_do_not_invoke_qwen(monkeypatch: pytest.MonkeyPatc
         "No sufficiently supported standard was found for this requirement."
     ]
     assert response.get_json()["result_state"] == "no_match"
+    assert response.get_json()["retrieved_candidate_count"] == 0
     assert reasoner.calls == []
 
 

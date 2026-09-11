@@ -305,10 +305,10 @@ def run_browser_flow(args: argparse.Namespace, base_url: str, model_name: str) -
             no_result_payload, no_result_latency = response_for_ui(page, args.no_result_query, int(args.timeout * 1000))
             if no_result_payload.get("status") != "success" or no_result_payload.get("recommendations") != []:
                 raise SmokeFailure("No-result query did not return the existing empty recommendation contract")
-            if not any("No suitable standard" in warning for warning in no_result_payload.get("warnings", [])):
+            if not any("No sufficiently supported standard" in warning for warning in no_result_payload.get("warnings", [])):
                 raise SmokeFailure("No-result query did not return the existing no-result warning")
             page.locator("#results-content-area").wait_for(state="visible", timeout=int(args.timeout * 1000))
-            if "No matches found" not in page.locator("#ranked-standards-list").inner_text():
+            if "No sufficiently supported standard found" not in page.locator("#ranked-standards-list").inner_text():
                 raise SmokeFailure("No-result UI did not render the existing no-match behavior")
             if "Explanation unavailable" in page.locator("#results-global-warnings").inner_text():
                 raise SmokeFailure("No-result path attempted Qwen explanation")
