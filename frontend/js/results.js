@@ -491,7 +491,7 @@ class ResultsManager {
          * Backend score is expected to be 0..1.
          */
         if (score >= 0 && score <= 1) {
-            return `${Math.round(score * 100)}%`;
+            return score.toFixed(3);
         }
 
         return String(score);

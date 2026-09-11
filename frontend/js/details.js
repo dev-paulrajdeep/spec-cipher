@@ -366,7 +366,7 @@ class DetailsManager {
         }
 
         if (score >= 0 && score <= 1) {
-            return `${Math.round(score * 100)}%`;
+            return score.toFixed(3);
         }
 
         return String(score);

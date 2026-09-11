@@ -229,7 +229,7 @@ def assert_success_page(page: Any, payload: dict[str, Any], query: str, timeout_
     reasoning_panel.wait_for(state="visible", timeout=timeout_ms)
     reasoning_text = reasoning_panel.inner_text()
     score = first.get("score", first.get("final_score"))
-    for required in (standard_number, title, "Similarity", rendered_score(score), f"#{first.get('rank')}" ):
+    for required in (standard_number, title, "Relevance", rendered_score(score), f"#{first.get('rank')}" ):
         if str(required) not in text:
             raise SmokeFailure(f"Rendered recommendation page is missing {required!r}")
     for required in ("Retrieved content", evidence_text[:40]):

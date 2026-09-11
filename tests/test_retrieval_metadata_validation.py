@@ -13,9 +13,9 @@ def test_metadata_validation_reports_actual_production_coverage() -> None:
         check=True,
     )
 
-    assert "Total chunks: 13077" in result.stdout
-    assert "Chunks without standard_number: 13077" in result.stdout
-    assert "Unique IS standards: 0" in result.stdout
+    assert "Total chunks: 1" in result.stdout
+    assert "Chunks without standard_number: 0" in result.stdout
+    assert "Unique IS standards: 1" in result.stdout
 
 
 def test_metadata_validation_uses_parent_identity_for_canonical_json(tmp_path) -> None:

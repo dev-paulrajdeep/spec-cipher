@@ -1,284 +1,106 @@
-# Backend API — Frontend Integration
-
-This document describes how the frontend communicates with the Flask backend.
+# Backend API
 
 ## `POST /get_result`
 
-The frontend sends the user's procurement specification to the backend.
-
-### What the frontend sends
-
-The request body must be JSON:
+Submit one procurement requirement as JSON:
 
 ```json
-{
-  "user_input": "Steel pipes for high pressure water supply"
-}
+{"user_input":"industrial pump construction requirements"}
 ```
 
-The important field is:
+The response is grouped at standard level and contains at most five recommendations. Retrieval candidates are retained internally; they are not returned as one top-level result per chunk.
 
-```text
-user_input
-```
-
-It contains the text entered by the user.
-
----
-
-# What the frontend receives from the backend
-
-## Successful response — `200 OK`
-
-The backend returns JSON in this format:
+### Recommendations found: `200 OK`
 
 ```json
 {
   "status": "success",
-  "user_input": "Steel pipes for high pressure water supply",
+  "result_state": "recommendations",
+  "user_input": "industrial pump construction requirements",
+  "retrieved_match_count": 1,
   "recommendations": [
     {
-      "standard_number": "IS XXXX",
-      "title": null,
-      "section_number": "5.2",
-      "section_title": "Steel Pipes",
-      "text": "Actual retrieved chunk text...",
-      "score": 0.91,
+      "standard_number": "IS 5120",
+      "title": "Technical requirements for general-purpose centrifugal pumps",
+      "score": 0.437,
       "rank": 1,
       "source": {
         "chunk_id": "chunk_abc123",
-        "source_file": "SP_7_2026.json",
-        "page_start": 12,
-        "page_end": 14,
-        "element_ids": []
-      }
+        "source_file": "standard.pdf",
+        "page_start": 1,
+        "page_end": 1
+      },
+      "source_evidence": {
+        "page_start": 1,
+        "page_end": 1,
+        "section_number": null,
+        "section_name": "Document preamble"
+      },
+      "evidence": [
+        {
+          "standard_number": "IS 5120",
+          "chunk_id": "chunk_abc123",
+          "source_file": "standard.pdf",
+          "page_start": 1,
+          "page_end": 1,
+          "section_number": null,
+          "section_title": "Document preamble",
+          "text": "Evidence excerpt from the source...",
+          "relevance_score": 0.437
+        }
+      ],
+      "explanation": null,
+      "explanation_text": "Recommendation is supported by retrieved source evidence.",
+      "warnings": ["Explanation unavailable: Ollama request failed"]
     }
   ],
   "warnings": []
 }
 ```
 
-> ## **IMPORTANT — `recommendations` is the main output**
->
-> The frontend should read:
->
-> ```javascript
-> result.recommendations
-> ```
->
-> This is an **array containing up to 5 retrieved results**.
+`score` and `relevance_score` are bounded relevance signals used for ordering. They are not calibrated confidence, probability, compliance, or similarity percentages. The UI displays them to three decimal places.
 
----
-
-## `recommendations[]`
-
-Each item inside `recommendations` represents **one retrieved document chunk**.
+### No sufficiently supported match: `200 OK`
 
 ```json
 {
-  "standard_number": "IS XXXX",
-  "title": null,
-  "section_number": "5.2",
-  "section_title": "Steel Pipes",
-  "text": "Actual retrieved chunk text...",
-  "score": 0.91,
-  "rank": 1,
-  "source": {
-    "chunk_id": "chunk_abc123",
-    "source_file": "SP_7_2026.json",
-    "page_start": 12,
-    "page_end": 14,
-    "element_ids": []
-  }
+  "status": "success",
+  "result_state": "no_match",
+  "recommendations": [],
+  "warnings": ["No sufficiently supported standard was found for this requirement."]
 }
 ```
 
-### Fields received by the frontend
+This state means the service completed but the retrieved evidence did not pass the recommendation gates. It is distinct from an unavailable system.
 
-| Field             | Type          | What it contains                                                  |
-| ----------------- | ------------- | ----------------------------------------------------------------- |
-| `standard_number` | string        | Indian Standard number associated with the retrieved chunk        |
-| `title`           | string / null | Standard title; currently returned as `null`                      |
-| `section_number`  | string / null | Section number of the retrieved chunk                             |
-| `section_title`   | string / null | Section title of the retrieved chunk                              |
-| `text`            | string        | **The actual text retrieved from the Indian Standard document**   |
-| `score`           | number        | Similarity score between the user's query and the retrieved chunk |
-| `rank`            | integer       | Position of the result (`1` = highest-ranked)                     |
-| `source`          | object        | Information about the original document/chunk                     |
-
----
-
-# `source`
-
-The `source` object contains the location/provenance of the retrieved chunk.
+### Invalid request: `400 Bad Request`
 
 ```json
-"source": {
-  "chunk_id": "chunk_abc123",
-  "source_file": "SP_7_2026.json",
-  "page_start": 12,
-  "page_end": 14,
-  "element_ids": []
-}
+{"status":"error","message":"user_input is required."}
 ```
 
-| Field         | Type    | What it contains                             |
-| ------------- | ------- | -------------------------------------------- |
-| `chunk_id`    | string  | Unique ID of the retrieved chunk             |
-| `source_file` | string  | Source document/file                         |
-| `page_start`  | integer | First page of the chunk                      |
-| `page_end`    | integer | Last page of the chunk                       |
-| `element_ids` | array   | Source element IDs associated with the chunk |
-
----
-
-# What the frontend will normally use
-
-For displaying a recommendation, the most useful fields are:
-
-```javascript
-recommendation.standard_number
-recommendation.section_number
-recommendation.section_title
-recommendation.text
-recommendation.score
-recommendation.rank
-recommendation.source
-```
-
-For example:
-
-```javascript
-const recommendation = result.recommendations[0];
-
-console.log(recommendation.standard_number);
-console.log(recommendation.text);
-console.log(recommendation.score);
-```
-
----
-
-# Example frontend request
-
-```javascript
-const response = await fetch("/get_result", {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-        user_input: "Steel pipes for high pressure water supply"
-    })
-});
-
-const result = await response.json();
-```
-
-After this:
-
-```javascript
-result
-```
-
-contains the complete backend response, and:
-
-```javascript
-result.recommendations
-```
-
-contains the retrieved results.
-
----
-
-# Error responses
-
-## `400 Bad Request`
-
-The request was invalid.
-
-Example:
+### Retrieval or recommendation service unavailable: `503`
 
 ```json
 {
   "status": "error",
-  "message": "user_input is required."
-}
-```
-
-This usually means the frontend sent no input or an empty input.
-
----
-
-## `503 Service Unavailable`
-
-The retrieval system is unavailable or the persisted retrieval index cannot be used.
-
-Example:
-
-```json
-{
-  "status": "error",
+  "result_state": "unavailable",
   "message": "Retrieval service unavailable."
 }
 ```
 
----
+This state indicates a missing/incompatible bundle, unavailable model, or serving failure. It must not be rendered as a no-match result.
 
-# Simple request → response flow
+## Preflight
 
-```text
-FRONTEND
-    |
-    |  POST /get_result
-    |  {"user_input": "..."}
-    ↓
-FLASK BACKEND
-    |
-    |  sends input to RetrievalService
-    ↓
-RETRIEVAL SYSTEM
-    |
-    |  returns up to 5 results
-    ↓
-FLASK BACKEND
-    |
-    |  converts results to JSON
-    ↓
-FRONTEND
-    |
-    └── result.recommendations
+Run the static bundle and corpus identity check before starting Flask:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\preflight.py
 ```
 
-## In short
+Rebuild the exact declared corpus when the check reports a fingerprint mismatch:
 
-**Frontend sends:**
-
-```json
-{
-  "user_input": "..."
-}
+```powershell
+.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus corpus\data\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json --output retrieval-index --device cpu --allow-cpu-fallback
 ```
-
-**Backend returns:**
-
-```text
-status
-user_input
-recommendations[]
-warnings
-```
-
-**The important part is `recommendations[]`:**
-
-```text
-standard_number
-title
-section_number
-section_title
-text
-score
-rank
-source
-```
-
-That is the data the frontend receives from the retrieval backend.

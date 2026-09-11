@@ -7,11 +7,23 @@ from .metrics import EvaluationCase
 
 DEMO_GOLD_CASES: tuple[EvaluationCase, ...] = (
     EvaluationCase(
-        query="waterproofing compound for concrete reservoir",
-        relevant_standard_numbers=frozenset({"IS 2645:2003"}),
+        query="industrial pump construction requirements",
+        relevant_standard_numbers=frozenset({"IS 5120"}),
     ),
     EvaluationCase(
-        query="concrete structures for storage of liquids",
-        relevant_standard_numbers=frozenset({"IS 3370 (Part 1):2021"}),
+        query="pump performance testing and hydrostatic certificates",
+        relevant_standard_numbers=frozenset({"IS 5120"}),
+    ),
+    EvaluationCase(
+        query="centrifugal pumps for water supply",
+        relevant_standard_numbers=frozenset({"IS 5120"}),
+    ),
+    EvaluationCase(
+        query="electrical compatibility of industrial pumps",
+        relevant_standard_numbers=frozenset({"IS 5120"}),
+    ),
+    EvaluationCase(
+        query="piping and installation requirements for pumps",
+        relevant_standard_numbers=frozenset({"IS 5120"}),
     ),
 )

@@ -27,7 +27,6 @@ def validate_bundle(
     """Validate static bundle identity and optionally the Ollama endpoint."""
     index_directory = Path(index_directory)
     corpus_path = Path(corpus_path)
-    required = tuple(index_directory / name for name in IndexPersistence.__dict__.values() if False)
     required_names = (
         IndexPersistence.INDEX_FILE,
         IndexPersistence.MAPPING_FILE,
