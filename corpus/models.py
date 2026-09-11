@@ -113,6 +113,9 @@ class StandardMetadata:
     status: str | None
     source_file: str
     page_count: int
+    # Optional ingestion provenance retained for corpus update / audit trails.
+    source_path: str | None = None
+    document_fingerprint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -162,6 +165,11 @@ class DocumentChunk:
     # Kept out of the stable JSONL projection so existing retrieval indexes can
     # read both old and new artifacts. Canonical JSON retains these links.
     element_ids: tuple[str, ...] = ()
+    source_path: str | None = None
+    document_fingerprint: str | None = None
+    document_id: str | None = None
+    title: str | None = None
+    chunking_version: str | None = None
 
 
 @dataclass(frozen=True)

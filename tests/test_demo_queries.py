@@ -16,10 +16,10 @@ def app_module():
 @pytest.mark.parametrize(
     ("query", "expected_state"),
     (
-        ("industrial pump construction requirements", "recommendations"),
-        ("pump", "recommendations"),
-        ("pump performance testing and hydrostatic certificates", "recommendations"),
-        ("industrial pumps, motors, and piping installation", "recommendations"),
+        ("general-purpose centrifugal pumps for industrial water service", "recommendations"),
+        ("centrifugal pumps", "recommendations"),
+        ("induction motors", "no_match"),
+        ("fire safety requirements for a commercial building", "no_match"),
         ("quantum satellite launch licensing", "no_match"),
     ),
 )
@@ -46,6 +46,24 @@ def test_demo_queries_cover_recommendation_and_no_match_paths(
         assert recommendation["evidence"][0]["text"]
         assert recommendation["evidence"][0]["page_start"] == 1
         assert 0 <= recommendation["score"] <= 1
+        assert recommendation["explanation_mode"] in {"generative", "deterministic"}
     else:
         assert payload["recommendations"] == []
         assert "No sufficiently supported" in payload["warnings"][0]
+
+
+def test_broad_industrial_pumps_query_is_not_confidently_forced(
+    app_module,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Broad category-only wording must not become a confident recommendation."""
+    monkeypatch.setattr(
+        app_module.qwen_reasoner,
+        "explain",
+        lambda *_args, **_kwargs: ExplanationOutcome(None),
+    )
+    response = app_module.app.test_client().post("/get_result", json={"user_input": "industrial pumps"})
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["result_state"] == "no_match"
+    assert payload["recommendations"] == []

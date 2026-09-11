@@ -11,7 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from retrieval import RetrievalConfig, RetrievalPipeline
-from retrieval.corpus_config import CANONICAL_CORPUS_PATH
+from retrieval.corpus_config import resolve_retrieval_corpus_path
 
 
 def main() -> None:
@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=CANONICAL_CORPUS_PATH,
+        default=None,
         help="canonical corpus JSON or retrieval-ready JSONL artifact",
     )
     parser.add_argument(
@@ -34,13 +34,14 @@ def main() -> None:
     parser.add_argument("--allow-cpu-fallback", action="store_true")
     args = parser.parse_args()
 
+    corpus = args.corpus or resolve_retrieval_corpus_path()
     config = RetrievalConfig(
         batch_size=args.batch_size,
         max_seq_length=args.max_seq_length,
         embedding_device=args.device,
         allow_cpu_fallback=args.allow_cpu_fallback,
     )
-    RetrievalPipeline(config).build_and_persist(args.corpus, args.output)
+    RetrievalPipeline(config).build_and_persist(corpus, args.output)
     print(f"Built retrieval index at {args.output.resolve()}")
 
 

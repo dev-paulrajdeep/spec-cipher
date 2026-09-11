@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 from retrieval.config import RetrievalConfig
-from retrieval.corpus_config import CANONICAL_CORPUS_PATH
+from retrieval.corpus_config import resolve_retrieval_corpus_path
 from retrieval.corpus_loader import CorpusChunkLoader
 from retrieval.indexing.persistence import IndexPersistence, corpus_fingerprint
 
@@ -19,14 +19,14 @@ class PreflightError(RuntimeError):
 
 def validate_bundle(
     index_directory: str | Path,
-    corpus_path: str | Path = CANONICAL_CORPUS_PATH,
+    corpus_path: str | Path | None = None,
     *,
     check_ollama: bool = False,
     ollama_host: str = "http://localhost:11434",
 ) -> None:
     """Validate static bundle identity and optionally the Ollama endpoint."""
     index_directory = Path(index_directory)
-    corpus_path = Path(corpus_path)
+    corpus_path = Path(corpus_path) if corpus_path is not None else resolve_retrieval_corpus_path()
     required_names = (
         IndexPersistence.INDEX_FILE,
         IndexPersistence.MAPPING_FILE,
@@ -46,13 +46,21 @@ def validate_bundle(
         loaded = CorpusChunkLoader().load(corpus_path)
         expected = corpus_fingerprint(loaded.chunks)
         actual = metadata.get("corpus_fingerprint") if isinstance(metadata, dict) else None
+        index_chunk_count = metadata.get("chunk_count") if isinstance(metadata, dict) else None
+        embedding_dimension = metadata.get("embedding_dimension") if isinstance(metadata, dict) else None
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         raise PreflightError(f"Could not validate corpus/index metadata: {exc}") from exc
     if actual != expected:
         raise PreflightError(
             "Retrieval index does not match the configured corpus. "
-            f"Rebuild with: python scripts/build_retrieval_index.py --corpus \"{corpus_path}\""
+            "Rebuild with: python scripts/update_corpus.py"
         )
+    if index_chunk_count != len(loaded.chunks):
+        raise PreflightError(
+            f"Corpus/index chunk count mismatch: corpus={len(loaded.chunks)} index_metadata={index_chunk_count}"
+        )
+    if not isinstance(embedding_dimension, int) or embedding_dimension < 1:
+        raise PreflightError("Persisted embedding dimension is missing or invalid")
 
     if check_ollama:
         parsed = urlsplit(ollama_host)
@@ -70,7 +78,7 @@ def validate_bundle(
             ) from exc
 
 
-def run_preflight(index_directory: str | Path, corpus_path: str | Path = CANONICAL_CORPUS_PATH) -> None:
+def run_preflight(index_directory: str | Path, corpus_path: str | Path | None = None) -> None:
     """CLI-friendly preflight that does not load the embedding model."""
     validate_bundle(index_directory, corpus_path)
     print("Preflight OK: retrieval bundle and corpus identity are valid")

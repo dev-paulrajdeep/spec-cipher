@@ -128,6 +128,30 @@ class CorpusChunkLoader:
         ):
             raise CorpusChunkLoadError(f"{location}.element_ids must be a list of non-empty strings")
         standard_number = row["standard_number"] or normalize_standard_number(row["source_file"])
+        source_path = row.get("source_path")
+        document_fingerprint = row.get("document_fingerprint")
+        if source_path is not None and (not isinstance(source_path, str) or not source_path.strip()):
+            raise CorpusChunkLoadError(f"{location}.source_path must be a non-empty string or null")
+        if document_fingerprint is not None and (
+            not isinstance(document_fingerprint, str) or not document_fingerprint.strip()
+        ):
+            raise CorpusChunkLoadError(
+                f"{location}.document_fingerprint must be a non-empty string or null"
+            )
+        document_id = row.get("document_id")
+        title = row.get("title")
+        chunking_version = row.get("chunking_version")
+        for optional_name, optional_value in (
+            ("document_id", document_id),
+            ("title", title),
+            ("chunking_version", chunking_version),
+        ):
+            if optional_value is not None and (
+                not isinstance(optional_value, str) or not optional_value.strip()
+            ):
+                raise CorpusChunkLoadError(
+                    f"{location}.{optional_name} must be a non-empty string or null"
+                )
         return DocumentChunk(
             chunk_id=row["chunk_id"],
             standard_number=standard_number,
@@ -138,6 +162,11 @@ class CorpusChunkLoader:
             section_title=row["section_title"],
             text=row["text"],
             element_ids=tuple(element_ids),
+            source_path=source_path,
+            document_fingerprint=document_fingerprint,
+            document_id=document_id,
+            title=title,
+            chunking_version=chunking_version,
         )
 
     @staticmethod

@@ -18,7 +18,7 @@ def write_document_json(document: StandardDocument, path: str | Path) -> None:
     )
 
 
-def write_chunks_jsonl(chunks: tuple[DocumentChunk, ...], path: str | Path) -> None:
+def write_chunks_jsonl(chunks: tuple[DocumentChunk, ...] | list[DocumentChunk], path: str | Path) -> None:
     """Write one independently indexable retrieval chunk per line."""
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -26,12 +26,31 @@ def write_chunks_jsonl(chunks: tuple[DocumentChunk, ...], path: str | Path) -> N
         for chunk in chunks:
             row = {
                 "chunk_id": chunk.chunk_id,
-                "standard_number": chunk.standard_number,
-                "source_file": chunk.source_file,
-                "page_start": chunk.page_start,
+                "document_fingerprint": chunk.document_fingerprint,
+                "document_id": chunk.document_id,
                 "page_end": chunk.page_end,
+                "page_start": chunk.page_start,
                 "section_number": chunk.section_number,
                 "section_title": chunk.section_title,
+                "source_file": chunk.source_file,
+                "source_path": chunk.source_path,
+                "standard_number": chunk.standard_number,
                 "text": chunk.text,
+                "title": chunk.title,
+                "chunking_version": chunk.chunking_version,
             }
-            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+            # Omit null optional provenance fields to keep older loaders tolerant
+            # while retaining explicit null for standard_number/title/section fields.
+            compact = {
+                key: value
+                for key, value in row.items()
+                if value is not None
+                or key
+                in {
+                    "standard_number",
+                    "section_number",
+                    "section_title",
+                    "title",
+                }
+            }
+            handle.write(json.dumps(compact, ensure_ascii=False, sort_keys=True) + "\n")

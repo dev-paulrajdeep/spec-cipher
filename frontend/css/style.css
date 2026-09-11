@@ -1079,6 +1079,19 @@ pre {
   gap: 0.3rem;
 }
 
+.explanation-mode {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.explanation-note {
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
 .reason-bullets {
   padding-left: 1rem;
   color: var(--text-secondary);

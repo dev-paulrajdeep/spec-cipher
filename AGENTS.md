@@ -15,6 +15,7 @@
 - `retrieval/service.py` is the serving boundary. Application code should use `RetrievalService.from_persisted()` and `.search()` rather than accessing FAISS or embedding objects directly.
 - `intelligence/pipeline/engine.py` owns constraints, reranking, applicability, relationships, evidence, and recommendation construction.
 - `corpus/pipeline.py` and `corpus/models.py` define ingestion, validation, canonical documents, and retrieval-ready chunks.
+- `corpus/update/` owns the general-purpose officialBIS PDF → JSONL → FAISS update workflow (`scripts/update_corpus.py`).
 - `backend/qwen_reasoning.py` adapts to Ollama. Explanations are optional and must fail open without changing finalized recommendations.
 - `frontend/` is a static HTML/CSS/JavaScript client with no frontend build system.
 - Public package exports live in `corpus/__init__.py`, `retrieval/__init__.py`, and `intelligence/__init__.py`.
@@ -27,14 +28,15 @@ Run commands from the repository root with the project interpreter:
 .\.venv\Scripts\python.exe -m pytest tests --disable-warnings --maxfail=1 -p no:cacheprovider
 .\.venv\Scripts\python.exe -m pytest tests/test_retrieval.py -q
 .\.venv\Scripts\python.exe -m compileall -q corpus retrieval intelligence backend tests
-.\.venv\Scripts\python.exe scripts/e2e_smoke.py
-.\.venv\Scripts\python.exe scripts/validate_full_chain.py
+.\.venv\Scripts\python.exe scripts\update_corpus.py
+.\.venv\Scripts\python.exe scripts\e2e_smoke.py
+.\.venv\Scripts\python.exe scripts\validate_full_chain.py
 .\.venv\Scripts\python.exe backend\app.py
 ```
 
 - Prefer a focused test first, then the full `tests/` suite when the change crosses module boundaries.
 - Use `pytest tests`, not bare `pytest`; repository-root collection includes an unrelated database test that expects a missing hard-coded PDF.
-- E2E checks require Ollama at `http://localhost:11434`, the configured Qwen model, and Playwright Chromium. Relevant environment variables include `QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, `QWEN_TIMEOUT_SECONDS`, `SPEC_CIPHER_HOST`, and `SPEC_CIPHER_PORT`.
+- E2E checks require Ollama at `http://localhost:11434`, the configured Qwen model, and Playwright Chromium. Relevant environment variables include `SPEC_CIPHER_OLLAMA_MODEL`, `SPEC_CIPHER_OLLAMA_TIMEOUT_SECONDS`, `SPEC_CIPHER_BIS_SOURCE_DIR`, `SPEC_CIPHER_HF_OFFLINE`, `QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, `QWEN_TIMEOUT_SECONDS`, `SPEC_CIPHER_HOST`, and `SPEC_CIPHER_PORT`.
 
 ## Retrieval Constraints
 
@@ -42,7 +44,13 @@ Run commands from the repository root with the project interpreter:
 - Rebuild the bundle with:
 
   ```powershell
-  .\.venv\Scripts\python.exe scripts/build_retrieval_index.py --corpus "corpus\data\SP 7_2026.chunks.jsonl" --output retrieval-index
+  .\.venv\Scripts\python.exe scripts\update_corpus.py
+  ```
+
+  Or manually from an existing artifact:
+
+  ```powershell
+  .\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus "corpus\data\corpus.chunks.jsonl" --output retrieval-index
   ```
 
 - Real retrieval requires the BGE-M3 model, Sentence Transformers, FAISS, and model-compatible device resources. Real reranking uses BGE reranker v2 M3; sequential lifecycle and conservative batches protect limited GPU memory.

@@ -366,6 +366,11 @@ class ResultsManager {
             );
 
         const explanation = standard?.explanation_text || standard?.explanation?.summary || standard?.reason;
+        const explanationLabel = standard?.explanation_label
+            || (standard?.explanation_mode === 'generative'
+                ? 'Generative evidence-grounded summary'
+                : 'Evidence-grounded summary');
+        const explanationNote = standard?.explanation_note || '';
         const relatedTopics =
             Array.isArray(standard?.related_topics)
                 ? standard.related_topics
@@ -477,9 +482,11 @@ class ResultsManager {
                         <div class="reason-box-title">Context</div>
                         <div class="evidence-content">${window.ui.escapeHtml(standard?.context || 'Context is not available in source metadata.')}</div>
                     </div>
-                    <div class="evidence-block">
+                    <div class="evidence-block" data-testid="explanation-block">
                         <div class="reason-box-title">Explanation</div>
+                        <div class="explanation-mode" data-testid="explanation-mode">${window.ui.escapeHtml(explanationLabel)}</div>
                         <div class="evidence-content">${window.ui.escapeHtml(explanation || 'Explanation is not available.')}</div>
+                        ${explanationNote ? `<div class="explanation-note" data-testid="explanation-note">${window.ui.escapeHtml(explanationNote)}</div>` : ''}
                     </div>
                 </div>
                 <aside class="record-source-column">

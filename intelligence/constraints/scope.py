@@ -21,6 +21,12 @@ _PRODUCT_TERMS = frozenset({
     "induction", "efficiency", "valve", "valves", "compressor", "boiler",
     "transformer",
 })
+# Bare product-category nouns alone are too broad for a confident mapping once
+# a corpus contains many standards in the same category family.
+_BARE_PRODUCT_CATEGORIES = frozenset({
+    "pump", "pumps", "motor", "motors", "valve", "valves", "compressor",
+    "compressors", "boiler", "boilers", "transformer", "transformers",
+})
 
 
 def _fold_token(token: str) -> str:
@@ -74,10 +80,16 @@ def scope_reasons(requirement: str, scope_text: str | None) -> tuple[ConstraintR
     # A generic procurement phrase is not sufficient evidence to name a
     # standard.  This is independent of semantic similarity and avoids a
     # one-chunk corpus turning broad wording into a confident recommendation.
-    if not query_tokens.difference(_GENERIC_REQUIREMENT_TERMS):
+    specific_tokens = query_tokens.difference(_GENERIC_REQUIREMENT_TERMS)
+    if not specific_tokens:
         reasons.append(ConstraintReason(
             "insufficient_requirement_specificity",
             "Requirement does not identify a product, material, application, or other specific scope term.",
+        ))
+    elif specific_tokens.issubset(_BARE_PRODUCT_CATEGORIES):
+        reasons.append(ConstraintReason(
+            "insufficient_requirement_specificity",
+            "Requirement names only a broad product category without a more specific product, material, or application term.",
         ))
     if not scope_text:
         return tuple(reasons)

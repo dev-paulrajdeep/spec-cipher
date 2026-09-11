@@ -5,17 +5,13 @@ from __future__ import annotations
 import re
 
 from corpus.models import CorpusPage, StandardMetadata
-from corpus.processing.normalizer import normalize_standard_number
+from corpus.processing.normalizer import normalize_document_number
 from .parser import StandardNumberParser
 
 
 _EDITION_RE = re.compile(r"\b((?:first|second|third|fourth|\d+(?:st|nd|rd|th))\s+edition)\b", re.I)
 _REVISION_RE = re.compile(r"\b((?:first|second|third|fourth|\d+(?:st|nd|rd|th))\s+revision|revision\s*\d+)\b", re.I)
 _STATUS_RE = re.compile(r"\b(reaffirmed|withdrawn|current|superseded|cancelled)\b", re.I)
-_KNOWN_TITLE_RE = re.compile(
-    r"\b(NATIONAL BUILDING (?:CONSTRUCTION )?STANDARDS(?:\s+\d{4})?(?:\s+VOLUME\s+\d+)?|NATIONAL BUILDING CODE OF INDIA(?:\s+\d{4})?)\b",
-    re.I,
-)
 
 
 class MetadataExtractor:
@@ -55,20 +51,17 @@ class MetadataExtractor:
         for page in pages[:3]:
             lines = [line.strip() for line in page.cleaned_text.splitlines() if line.strip()]
             for index, line in enumerate(lines):
-                if standard_number and normalize_standard_number(line) == standard_number:
+                if standard_number and normalize_document_number(line) == standard_number:
                     for following in lines[index + 1 : index + 4]:
                         if (
                             len(following) >= 4
                             and len(following) <= 220
-                            and not following.lower().startswith(("is ", "sp ", "bureau of", "copyright"))
-                            and not re.match(r"^(?:\d+(?:\.\d+)*\.?\s+|annex\b|appendix\b|first\b|second\b|third\b|fourth\b)", following, re.I)
+                            and not following.lower().startswith(("copyright", "bureau of"))
+                            and not re.match(
+                                r"^(?:\d+(?:\.\d+)*\.?\s+|annex\b|appendix\b|first\b|second\b|third\b|fourth\b)",
+                                following,
+                                re.I,
+                            )
                         ):
                             return following
-        for page in pages[:3]:
-            for line in page.cleaned_text.splitlines():
-                clean_line = line.strip()
-                match = _KNOWN_TITLE_RE.search(clean_line)
-                if match:
-                    return match.group(1).title()
         return None
-

@@ -8,6 +8,8 @@ import re
 
 from corpus.models import DocumentChunk, Section
 
+CHUNKING_VERSION = "1.1"
+
 
 @dataclass(frozen=True)
 class ChunkingConfig:
@@ -49,6 +51,7 @@ class DocumentChunker:
                         section_number=section.section_number,
                         section_title=section.title,
                         text=part,
+                        chunking_version=CHUNKING_VERSION,
                     )
                 )
         return tuple(chunks)

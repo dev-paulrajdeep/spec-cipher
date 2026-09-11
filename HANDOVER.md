@@ -19,12 +19,18 @@ Verified in this checkout:
 - optional corpus element-level provenance is preserved and validated;
 - current `IS 5120` corpus/index identity and provenance checks.
 
-The current serving corpus is intentionally smaller: one canonical JSON
-artifact with one independently indexed `IS 5120` chunk. The source text
-mentions other standards, but they are not independently indexed and must not
-be emitted as recommendations. The original source PDF is absent; provenance
-therefore ends at the canonical extracted JSON and its recorded page/chunk
-fields.
+The current serving corpus is intentionally smaller: one historical/demo
+canonical JSON artifact with one independently indexed `IS 5120` chunk. That
+checklist is **not** an official BIS PDF extraction; the original official
+source PDF is absent from this repository. Provenance for the demo path ends
+at the checked-in canonical JSON and its recorded page/chunk fields.
+
+Authentic official BIS publications must be supplied by the user under
+`officialBIS/` and ingested only through `scripts/update_corpus.py`. SpecCipher
+does not generate, synthesize, reconstruct, or download PDFs. Catalog/list PDFs
+that merely mention many IS numbers are rejected and those mentions are not
+promoted to independently indexed standards. If no authentic IS 5120 PDF is
+present, the updater reports IS 5120 as unavailable rather than inventing one.
 
 ## Architecture
 

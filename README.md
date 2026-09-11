@@ -1,79 +1,147 @@
 # SpecCipher
 
-### AI-Powered Indian Standards Recommendation Engine
+### AI-Powered Standards Recommendation Engine
 
-> **Judge-ready MVP scope (September 2026).** The checked-in retrieval bundle
-> contains exactly one independently indexed canonical chunk: `IS 5120`,
-> “Technical requirements for general-purpose centrifugal pumps.” It is useful
-> for demonstrating the evidence-first flow, not for claiming BIS-wide or
-> multi-standard coverage. Its original PDF is absent; provenance is carried
-> from `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json`.
+> **Judge-ready MVP scope (September 2026).** Runtime demo serving currently
+> falls back to the historical checklist JSON
+> `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json` when no
+> authentic source-derived corpus is present. That checklist independently
+> indexes one demo standard for evidence-first demonstration. It is **not** an
+> official source PDF and must not be described as one.
+> Authentic publications belong only in `officialBIS/` and are ingested by the
+> general-purpose `scripts\update_corpus.py` pipeline.
+
+## Source-of-truth distinction
+
+| Artifact | Role | Origin |
+| --- | --- | --- |
+| `officialBIS/` | User-supplied technical/standards PDFs only | Local; never generated or committed |
+| `scripts/update_corpus.py` | Offline general PDF → JSONL → FAISS rebuild | Corpus update time |
+| `corpus/data/documents/`, `corpus.chunks.jsonl`, `manifest.json` | Generated corpus projection | Produced only by the updater |
+| `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json` | Historical/demo serving corpus | Checked-in demo data; **not** an official PDF extraction |
+| Flask runtime | Serves generated corpus when present; otherwise the historical checklist | Runtime request time; never parses PDFs |
+
+SpecCipher never downloads source documents, never fabricates PDFs, and never
+treats mentioned document numbers inside a catalog PDF as independently indexed
+documents.
+
+## Updating the corpus (general-purpose PDF ingestion)
+
+**Corpus update time** is separate from **runtime request time**. The server
+never parses `officialBIS/` on startup or per request.
+
+### Adding a new PDF
+
+1. Place any suitable technical/standards PDF in:
+
+```text
+officialBIS/
+```
+
+2. Run one command:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\update_corpus.py
+```
+
+3. Verify the update summary.
+4. Start SpecCipher:
+
+```powershell
+.\.venv\Scripts\python.exe backend\app.py
+```
+
+No manual JSON editing. No manual FAISS commands. No Python changes per new PDF.
+
+Pipeline:
+
+```text
+PDF → extraction → metadata/identity → structure-aware chunking → JSONL
+  → BGE-M3 embeddings → FAISS IndexFlatIP → manifest/provenance
+```
+
+What the updater does:
+
+- discovers PDFs recursively under `officialBIS/` (or `SPEC_CIPHER_BIS_SOURCE_DIR`)
+- extracts text with the existing PyMuPDF corpus pipeline
+- resolves document identity conservatively (filename / title / header)
+- rejects catalog/list PDFs that only mention many document numbers
+- preserves unresolved ingestible documents without inventing numbers
+- writes canonical documents under `corpus/data/documents/`
+- writes retrieval chunks to `corpus/data/corpus.chunks.jsonl`
+- rebuilds FAISS under `retrieval-index/`
+- leaves the historical demo checklist JSON untouched
+
+If no PDF produces a usable corpus, the updater reports failures, clears
+source-derived generated artifacts, and does **not** manufacture a substitute
+PDF or corpus document. Runtime can still use the historical demo checklist.
+
+Dry-run:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\update_corpus.py --check
+```
 
 ## Run the current MVP
 
 Use Python 3.11+ and a project-local virtual environment, then install
 `requirements.txt`. Obtain/cache the exact `BAAI/bge-m3` model before offline
-operation; normal serving does not download models. Set
-`SPEC_CIPHER_ALLOW_MODEL_DOWNLOAD=1` only for an explicit model-acquisition
-run. Build the
-matching index only after changing the canonical corpus:
+operation; normal serving does not download models.
+
+Without authentic source-derived chunks, demo serving uses the historical
+checklist and a matching rebuilt index:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\preflight.py
 .\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus corpus\data\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json --output retrieval-index --device cpu --allow-cpu-fallback
+.\.venv\Scripts\python.exe scripts\preflight.py
 .\.venv\Scripts\python.exe backend\app.py
 ```
 
-For disconnected startup, set `SPEC_CIPHER_HF_OFFLINE=1`; missing cached model
-artifacts cause an actionable startup failure rather than substitution with a
-different model. `GET /health` is ready only after BGE-M3 has loaded. The
-browser uses the same-origin `POST /get_result` API. Qwen/Ollama is optional
-and is never required for a recommendation:
-its timeout, absence, or invalid reply produces a deterministic,
-evidence-grounded explanation and warning without changing recommendations.
+When authentic officialBIS PDFs are available:
 
-Useful environment variables: `SPEC_CIPHER_EMBEDDING_DEVICE` (`auto`, `cuda`,
-or `cpu`), `SPEC_CIPHER_ALLOW_CPU_FALLBACK=1`, `SPEC_CIPHER_HF_OFFLINE=1`,
-`QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, `QWEN_TIMEOUT_SECONDS`,
-`SPEC_CIPHER_HOST`, and `SPEC_CIPHER_PORT`. CORS is disabled by default; set
-`SPEC_CIPHER_CORS_ORIGINS` to an explicit comma-separated allowlist only when
-hosting the frontend separately.
+```powershell
+.\.venv\Scripts\python.exe scripts\update_corpus.py
+.\.venv\Scripts\python.exe scripts\preflight.py
+.\.venv\Scripts\python.exe backend\app.py
+```
 
-The runtime flow is: frontend requirement → Flask validation → normalized
-1024-dimensional BGE-M3 embedding → `IndexFlatIP` cosine retrieval →
-deterministic token-overlap reranking → constraints/applicability →
-recommendation/evidence → optional explanation. Similarity/relevance is not
-applicability, confidence, or compliance. Run the maintained suite with
-`python -m pytest tests`; do not use bare `pytest` from repository root.
+For disconnected startup, set `SPEC_CIPHER_HF_OFFLINE=1`. `GET /health` reports
+`corpus_origin` as `historical_demo_checklist` or `officialbis_derived`.
+Qwen/Ollama remains optional explanation-only.
+
+### Configuration
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `SPEC_CIPHER_BIS_SOURCE_DIR` | PDF source directory | `officialBIS/` |
+| `SPEC_CIPHER_OLLAMA_MODEL` | Optional explanation model name | `qwen3-4b-thinking:latest` |
+| `SPEC_CIPHER_OLLAMA_TIMEOUT_SECONDS` | Bounded Ollama timeout | `5` |
+| `SPEC_CIPHER_HF_OFFLINE` | Force Hugging Face offline mode | unset |
+| `SPEC_CIPHER_EMBEDDING_DEVICE` | `auto` / `cuda` / `cpu` | `auto` |
+| `SPEC_CIPHER_ALLOW_CPU_FALLBACK` | Allow CPU if CUDA fails | `1` |
+| `SPEC_CIPHER_HOST` / `SPEC_CIPHER_PORT` | Flask bind address | `127.0.0.1` / `5000` |
+
+Legacy aliases `QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, and `QWEN_TIMEOUT_SECONDS`
+remain supported.
 
 ### Current capability and boundary
 
-The serving bundle contains exactly one independently indexed standard and one
-chunk: `IS 5120`. The corpus text mentions other IS codes as related source
-content, but those codes are not independently indexed and cannot become
-recommendations. The original source PDF is absent, so the canonical extracted
-JSON is the available provenance artifact; page numbers refer to that
-extraction, not to an independently auditable PDF in this repository.
-
-This is a truthful evidence-first MVP. Scaling to broader coverage requires
-independently sourced and indexed standards, their source artifacts, a rebuilt
-fingerprinted bundle, and evaluation data. No multi-standard or BIS-wide
-coverage should be inferred from the current demo.
+The historical checklist independently indexes one demo standard and mentions
+other codes only as related source text. Those mentions are not independently
+indexed. `officialBIS/` may contain catalog/list PDFs that are correctly
+rejected until authentic single-document publications are supplied by the user.
 
 ### Judge demo procedure
 
-1. Activate the project environment and run `scripts/preflight.py`.
-2. Start `backend/app.py` once, then verify `GET /health` returns HTTP 200 and
-   `"status":"ready"`.
-3. Open `http://127.0.0.1:5000/` and submit
-   `general-purpose centrifugal pumps for industrial water service`.
-4. Show the `IS 5120` recommendation, relevance and applicability scores,
-   extracted evidence, source filename/page/chunk, and the explanation warning
-   if Ollama is unavailable.
-5. Repeat with `fire safety requirements for a commercial building` to show
-   the honest no-match state; it must not invent a fire-safety standard.
-6. Use `Refine specification` to return to the input, and use the retry path
-   after an API failure or timeout.
+1. Confirm serving corpus origin via `GET /health` (`historical_demo_checklist`
+   unless authentic source ingestion succeeded).
+2. Start `backend\app.py`, verify `GET /health` is `"status":"ready"`.
+3. Submit `general-purpose centrifugal pumps for industrial water service`.
+4. Show the recommendation and evidence; state clearly whether the corpus is
+   historical demo checklist data or authentic source-derived.
+5. Repeat with `fire safety requirements for a commercial building` for honest
+   `no_match`.
+6. Do not present synthesized PDFs as official sources.
 
 The browser acceptance command is `python scripts/e2e_smoke.py`. It starts and
 stops only the backend process it owns, checks `/health`, exercises success,
@@ -83,8 +151,7 @@ optional-Qwen fallback, and no-match states, and writes evidence under
 **Smart India Hackathon 2026 --- SIH26108**
 
 SpecCipher is an AI-assisted decision-support system for identifying
-potentially applicable **Indian Standards (IS)** from procurement
-requirements.
+potentially applicable **standards** from procurement requirements.
 
 It helps procurement users move from an unstructured requirement---such
 as a product description, technical specification, application,
@@ -96,7 +163,7 @@ evidence, and related-standard context.
 
 ## The Problem
 
-Identifying the right Indian Standard for a procurement requirement can
+Identifying the right standard for a procurement requirement can
 be difficult.
 
 A procurement specification may contain product information, technical

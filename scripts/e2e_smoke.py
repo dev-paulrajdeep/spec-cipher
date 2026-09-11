@@ -282,13 +282,19 @@ def run_browser_flow(args: argparse.Namespace, base_url: str, model_name: str) -
             explanation = failed_recommendation.get("explanation")
             if not isinstance(explanation, dict) or not explanation.get("summary"):
                 raise SmokeFailure("Qwen failure isolation did not provide a deterministic explanation")
-            if not any("AI explanation unavailable" in warning for warning in failed_recommendation.get("warnings", [])):
-                raise SmokeFailure("Qwen failure isolation did not expose the existing warning")
+            if failed_recommendation.get("explanation_mode") != "deterministic":
+                raise SmokeFailure("Qwen failure isolation did not use deterministic explanation mode")
+            note = failed_recommendation.get("explanation_note") or ""
+            if "Generative explanation unavailable" not in note:
+                raise SmokeFailure("Qwen failure isolation did not expose the explanation note")
             if stable_recommendation(failed_recommendation) != result["recommendation_integrity_baseline"]:
                 raise SmokeFailure("Qwen failure changed recommendation fields")
             page.locator("#results-content-area").wait_for(state="visible", timeout=int(args.timeout * 1000))
-            if "AI explanation unavailable" not in page.locator("#results-global-warnings").inner_text():
-                raise SmokeFailure("Qwen failure warning was not rendered in the UI")
+            explanation_text = page.locator('[data-testid="explanation-block"]').inner_text()
+            if "Evidence-grounded summary" not in explanation_text:
+                raise SmokeFailure("Deterministic explanation mode was not rendered in the UI")
+            if "Generative explanation unavailable" not in explanation_text:
+                raise SmokeFailure("Explanation note was not rendered in the UI")
             result["failure_isolation"] = {"status": "passed", "latency_seconds": failure_latency}
 
             page.goto(f"{base_url}/", wait_until="domcontentloaded", timeout=int(args.timeout * 1000))
@@ -300,7 +306,8 @@ def run_browser_flow(args: argparse.Namespace, base_url: str, model_name: str) -
             page.locator("#results-content-area").wait_for(state="visible", timeout=int(args.timeout * 1000))
             if "No sufficiently supported standard found" not in page.locator("#ranked-standards-list").inner_text():
                 raise SmokeFailure("No-result UI did not render the existing no-match behavior")
-            if "AI explanation unavailable" in page.locator("#results-global-warnings").inner_text():
+            warnings_text = page.locator("#results-global-warnings").inner_text()
+            if "AI explanation unavailable" in warnings_text or "Generative explanation unavailable" in warnings_text:
                 raise SmokeFailure("No-result path attempted Qwen explanation")
             result["no_result"] = {"status": "passed", "latency_seconds": no_result_latency}
             browser.close()

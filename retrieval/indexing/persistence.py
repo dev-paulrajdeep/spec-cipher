@@ -250,6 +250,8 @@ class IndexPersistence:
                 section_title=section_title,
                 text=text,
                 element_ids=tuple(element_ids),
+                source_path=row.get("source_path"),
+                document_fingerprint=row.get("document_fingerprint"),
             ))
         chunk_ids = [chunk.chunk_id for chunk in chunks]
         if len(chunk_ids) != len(set(chunk_ids)):

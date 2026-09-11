@@ -47,10 +47,22 @@ def test_pipeline_serializes_json_and_jsonl_deterministically(tmp_path) -> None:
     assert payload["metadata"]["standard_number"] == "IS 2645:2003"
     assert payload["chunks"]
     rows = [json.loads(line) for line in chunks.read_text(encoding="utf-8").splitlines()]
-    assert rows == [
-        {key: getattr(chunk, key) for key in ("chunk_id", "standard_number", "source_file", "page_start", "page_end", "section_number", "section_title", "text")}
-        for chunk in document.chunks
-    ]
+    assert [row["chunk_id"] for row in rows] == [chunk.chunk_id for chunk in document.chunks]
+    for row, chunk in zip(rows, document.chunks, strict=True):
+        assert row["standard_number"] == chunk.standard_number
+        assert row["source_file"] == chunk.source_file
+        assert row["page_start"] == chunk.page_start
+        assert row["page_end"] == chunk.page_end
+        assert row["section_number"] == chunk.section_number
+        assert row["section_title"] == chunk.section_title
+        assert row["text"] == chunk.text
+        assert row.get("chunking_version") == chunk.chunking_version
+    # Deterministic rewrite
+    second = tmp_path / "chunks2.jsonl"
+    from corpus.serialization import write_chunks_jsonl
+
+    write_chunks_jsonl(document.chunks, second)
+    assert chunks.read_text(encoding="utf-8") == second.read_text(encoding="utf-8")
 
 
 def test_pipeline_processes_a_page_preserving_pdf_end_to_end(tmp_path) -> None:

@@ -36,3 +36,12 @@ def test_frontend_error_panel_and_retry_exist() -> None:
     assert "btn-retry-analysis" in analyze
     assert 'maxlength="4000"' in index
     assert "IS 5120" in index
+
+
+def test_frontend_renders_explanation_mode_labels() -> None:
+    source = RESULTS_SCRIPT.read_text(encoding="utf-8")
+    assert "explanation_label" in source
+    assert "Generative evidence-grounded summary" in source
+    assert "Evidence-grounded summary" in source
+    assert "explanation-note" in source
+    assert "AI explanation unavailable" not in source

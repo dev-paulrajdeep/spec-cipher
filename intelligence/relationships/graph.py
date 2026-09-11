@@ -108,7 +108,20 @@ class CorpusKnowledgeBase:
             metadata_data = payload.get("metadata")
             if not isinstance(metadata_data, dict):
                 raise ValueError("Canonical corpus JSON is missing metadata")
-            metadata = StandardMetadata(**metadata_data)
+            if "source_file" not in metadata_data or "page_count" not in metadata_data:
+                raise ValueError("Canonical corpus metadata is missing required fields")
+            metadata = StandardMetadata(
+                standard_number=metadata_data.get("standard_number"),
+                title=metadata_data.get("title"),
+                year=metadata_data.get("year"),
+                edition=metadata_data.get("edition"),
+                revision=metadata_data.get("revision"),
+                status=metadata_data.get("status"),
+                source_file=metadata_data["source_file"],
+                page_count=metadata_data["page_count"],
+                source_path=metadata_data.get("source_path"),
+                document_fingerprint=metadata_data.get("document_fingerprint"),
+            )
             scope_text = "\n".join(
                 section.get("text", "") for section in payload.get("sections", [])
                 if isinstance(section, dict) and str(section.get("title", "")).strip().lower() == "scope"

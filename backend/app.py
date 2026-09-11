@@ -11,11 +11,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from backend.preflight import PreflightError, validate_bundle
-from backend.qwen_reasoning import EXPLANATION_FALLBACK_WARNING, QwenReasoner, deterministic_explanation
+from backend.qwen_reasoning import QwenReasoner, deterministic_explanation
 from intelligence.pipeline import IntelligenceEngine
 from intelligence.relationships import CorpusKnowledgeBase
 from retrieval.config import RetrievalConfig
-from retrieval.corpus_config import CANONICAL_CORPUS_PATH
+from retrieval.corpus_config import (
+    resolve_knowledge_base_paths,
+    resolve_retrieval_corpus_path,
+    serving_corpus_origin,
+)
 from retrieval.indexing import IndexCompatibilityError
 from retrieval.service import RetrievalService, RetrievalUnavailableError
 
@@ -31,7 +35,7 @@ if not logging.getLogger().handlers:
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
 FRONTEND_DIR, RETRIEVAL_INDEX_DIR = PROJECT_ROOT / "frontend", PROJECT_ROOT / "retrieval-index"
-CANONICAL_CORPUS_FILE = CANONICAL_CORPUS_PATH
+CANONICAL_CORPUS_FILE = resolve_retrieval_corpus_path()
 hf_offline = _env_flag("SPEC_CIPHER_HF_OFFLINE")
 if hf_offline:
     os.environ["HF_HUB_OFFLINE"] = "1"
@@ -40,6 +44,7 @@ if hf_offline:
 def _load_runtime() -> tuple[RetrievalService, IntelligenceEngine, QwenReasoner]:
     """Validate static inputs before loading the one process-wide embedding model."""
     started = perf_counter()
+    knowledge_paths = resolve_knowledge_base_paths()
     try:
         validate_bundle(RETRIEVAL_INDEX_DIR, CANONICAL_CORPUS_FILE)
         service = RetrievalService.from_persisted(RETRIEVAL_INDEX_DIR, config=RetrievalConfig(
@@ -58,14 +63,19 @@ def _load_runtime() -> tuple[RetrievalService, IntelligenceEngine, QwenReasoner]
             "SpecCipher startup failed. Verify the matching retrieval-index bundle, "
             "canonical corpus, cached BAAI/bge-m3 artifacts, and embedding device configuration."
         ) from exc
-    knowledge_base = CorpusKnowledgeBase.from_canonical_json((CANONICAL_CORPUS_FILE,))
+    if not knowledge_paths:
+        raise RuntimeError(
+            "SpecCipher startup failed. No canonical corpus documents were found under corpus/data."
+        )
+    knowledge_base = CorpusKnowledgeBase.from_canonical_json(knowledge_paths)
     readiness = service.readiness()
     logger.info(
-        "Runtime ready offline=%s chunks=%s standards=%s device=%s startup_ms=%.2f",
+        "Runtime ready offline=%s chunks=%s standards=%s device=%s ollama_model=%s startup_ms=%.2f",
         hf_offline,
         readiness.get("chunk_count"),
         readiness.get("standard_count"),
         readiness.get("embedding_device"),
+        QwenReasoner().config.model_name,
         (perf_counter() - started) * 1000,
     )
     return service, IntelligenceEngine(knowledge_base=knowledge_base), QwenReasoner()
@@ -161,9 +171,17 @@ def health():
         "embedding_device": state["embedding_device"],
         "hf_offline": hf_offline,
         "corpus": CANONICAL_CORPUS_FILE.name,
+        "corpus_origin": serving_corpus_origin(),
         "chunk_count": state.get("chunk_count", 0),
         "standard_count": state.get("standard_count", 0),
-        "limitations": "One independently indexed standard and one chunk are currently available.",
+        "ollama_model": qwen_reasoner.config.model_name,
+        "explanation_optional": True,
+        "limitations": (
+            "Historical demo checklist is used when no authentic officialBIS-derived "
+            "corpus is present. Generative explanation is optional."
+            if serving_corpus_origin() == "historical_demo_checklist"
+            else "Recommendations are deterministic; generative explanation is optional."
+        ),
     }
     return jsonify(payload), 200 if status == "ready" else 503
 
@@ -239,10 +257,19 @@ def _serialize_recommendations(user_input, recommendations):
         if index == 0:
             outcome = qwen_reasoner.explain(user_input, recommendation)
             explanation = outcome.explanation or deterministic_explanation(recommendation)
+            mode = outcome.mode or ("deterministic" if outcome.warning else "generative")
+            payload["explanation_mode"] = mode
+            payload["explanation_label"] = (
+                "Generative evidence-grounded summary"
+                if mode == "generative"
+                else "Evidence-grounded summary"
+            )
             if outcome.warning:
-                payload["warnings"].append(EXPLANATION_FALLBACK_WARNING)
+                payload["explanation_note"] = outcome.warning
         else:
             explanation = deterministic_explanation(recommendation)
+            payload["explanation_mode"] = "deterministic"
+            payload["explanation_label"] = "Evidence-grounded summary"
         payload["explanation"], payload["explanation_text"] = explanation, explanation["summary"]
         payloads.append(payload)
     return payloads

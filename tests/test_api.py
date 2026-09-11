@@ -113,7 +113,15 @@ def stable_recommendation_fields(payload: dict[str, object]) -> dict[str, object
     return {
         key: value
         for key, value in payload.items()
-        if key not in {"explanation", "explanation_text", "warnings"}
+        if key
+        not in {
+            "explanation",
+            "explanation_text",
+            "explanation_mode",
+            "explanation_label",
+            "explanation_note",
+            "warnings",
+        }
     }
 
 
@@ -127,7 +135,7 @@ def test_endpoint_adds_explanation_without_changing_recommendation_fields(
         "key_points": ["The scope text is relevant."],
         "caveats": ["Verify the complete standard before use."],
     }
-    reasoner = FakeReasoner(ExplanationOutcome(explanation))
+    reasoner = FakeReasoner(ExplanationOutcome(explanation, None, "generative"))
     module.qwen_reasoner = reasoner
 
     response = module.app.test_client().post(
@@ -141,6 +149,8 @@ def test_endpoint_adds_explanation_without_changing_recommendation_fields(
     assert stable_recommendation_fields(payload) == stable_recommendation_fields(source.to_dict())
     assert payload["warnings"] == source.to_dict()["warnings"]
     assert payload["explanation"] == explanation
+    assert payload["explanation_mode"] == "generative"
+    assert payload["explanation_label"] == "Generative evidence-grounded summary"
     assert retriever.calls == [("waterproofing compound for concrete", 500)]
     assert reasoner.calls == [("waterproofing compound for concrete", source)]
 
@@ -151,7 +161,7 @@ def test_endpoint_fails_open_when_explanation_is_unavailable(
     source = recommendation()
     module, _ = load_app(monkeypatch, (source,))
     module.qwen_reasoner = FakeReasoner(
-        ExplanationOutcome(None, "Explanation unavailable: Ollama request timed out")
+        ExplanationOutcome(None, "Generative explanation unavailable; deterministic evidence summary shown.")
     )
 
     response = module.app.test_client().post("/get_result", json={"user_input": "waterproofing"})
@@ -160,9 +170,10 @@ def test_endpoint_fails_open_when_explanation_is_unavailable(
     assert stable_recommendation_fields(payload) == stable_recommendation_fields(source.to_dict())
     assert payload["explanation"] is not None
     assert payload["explanation_text"]
-    assert payload["warnings"] == [
-        "AI explanation unavailable; showing a deterministic evidence summary."
-    ]
+    assert payload["explanation_mode"] == "deterministic"
+    assert payload["explanation_label"] == "Evidence-grounded summary"
+    assert "Generative explanation unavailable" in payload["explanation_note"]
+    assert payload["warnings"] == source.to_dict()["warnings"]
 
 
 def test_empty_recommendations_do_not_invoke_qwen(monkeypatch: pytest.MonkeyPatch) -> None:

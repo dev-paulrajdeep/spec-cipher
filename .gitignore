@@ -228,10 +228,22 @@ __marimo__/
 **/.cache/torch/
 *.safetensors
 *.bin
+
+# Official BIS source PDFs are local-only; never commit them.
+officialBIS/*
+!officialBIS/.gitkeep
+
+# Generated corpus artifacts under corpus/data (except the historical demo alias).
 !corpus/data/
 corpus/data/*.json
 corpus/data/*.jsonl
+corpus/data/documents/
+corpus/data/_assets/
 !corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json
+!corpus/data/corpus.chunks.jsonl
+!corpus/data/manifest.json
+!corpus/data/documents/
+!corpus/data/documents/*.json
 
 #Temp testing files
 .tmp
