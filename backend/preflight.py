@@ -10,6 +10,7 @@ from urllib.request import urlopen
 from retrieval.config import RetrievalConfig
 from retrieval.corpus_config import resolve_retrieval_corpus_path
 from retrieval.corpus_loader import CorpusChunkLoader
+from retrieval.indexing import FaissIndex
 from retrieval.indexing.persistence import IndexPersistence, corpus_fingerprint
 
 
@@ -44,23 +45,42 @@ def validate_bundle(
     try:
         metadata = json.loads((index_directory / IndexPersistence.METADATA_FILE).read_text(encoding="utf-8"))
         loaded = CorpusChunkLoader().load(corpus_path)
+        persisted_rows = json.loads((index_directory / IndexPersistence.CHUNKS_FILE).read_text(encoding="utf-8"))
+        persisted_chunks = IndexPersistence._chunks_from_rows(persisted_rows)
+        mapping = json.loads((index_directory / IndexPersistence.MAPPING_FILE).read_text(encoding="utf-8"))
         expected = corpus_fingerprint(loaded.chunks)
+        persisted_fingerprint = corpus_fingerprint(persisted_chunks)
         actual = metadata.get("corpus_fingerprint") if isinstance(metadata, dict) else None
         index_chunk_count = metadata.get("chunk_count") if isinstance(metadata, dict) else None
         embedding_dimension = metadata.get("embedding_dimension") if isinstance(metadata, dict) else None
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        native = FaissIndex._import_faiss().read_index(str(index_directory / IndexPersistence.INDEX_FILE))
+        vector_count = int(native.ntotal)
+        vector_dimension = int(native.d)
+    except (OSError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
         raise PreflightError(f"Could not validate corpus/index metadata: {exc}") from exc
     if actual != expected:
         raise PreflightError(
             "Retrieval index does not match the configured corpus. "
             "Rebuild with: python scripts/update_corpus.py"
         )
+    if persisted_fingerprint != expected:
+        raise PreflightError("Persisted index chunks do not match the configured corpus")
+    if not isinstance(mapping, list) or tuple(mapping) != tuple(chunk.chunk_id for chunk in persisted_chunks):
+        raise PreflightError("Persisted index chunk mapping does not match its chunk payload")
     if index_chunk_count != len(loaded.chunks):
         raise PreflightError(
             f"Corpus/index chunk count mismatch: corpus={len(loaded.chunks)} index_metadata={index_chunk_count}"
         )
     if not isinstance(embedding_dimension, int) or embedding_dimension < 1:
         raise PreflightError("Persisted embedding dimension is missing or invalid")
+    if vector_count != len(loaded.chunks) or vector_count != index_chunk_count:
+        raise PreflightError(
+            f"Corpus/index vector count mismatch: corpus={len(loaded.chunks)} vectors={vector_count} metadata={index_chunk_count}"
+        )
+    if vector_dimension != embedding_dimension:
+        raise PreflightError(
+            f"Persisted FAISS dimension mismatch: vectors={vector_dimension} metadata={embedding_dimension}"
+        )
     # Empty eligible indexes are valid when officialBIS contains only
     # reference-only documents (catalogs/lists/unresolved identity).
 
