@@ -222,8 +222,10 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Large PDF files
+!corpus/data/
 corpus/data/*.json
 corpus/data/*.jsonl
+!corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json
 
 #Temp testing files
 .tmp

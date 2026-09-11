@@ -148,9 +148,10 @@ def test_endpoint_fails_open_when_explanation_is_unavailable(
     payload = response.get_json()["recommendations"][0]
 
     assert stable_recommendation_fields(payload) == stable_recommendation_fields(source.to_dict())
-    assert payload["explanation"] is None
+    assert payload["explanation"] is not None
+    assert payload["explanation_text"]
     assert payload["warnings"] == [
-        "Explanation unavailable: Ollama request timed out"
+        "AI explanation unavailable; showing a deterministic evidence summary."
     ]
 
 

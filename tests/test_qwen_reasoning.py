@@ -281,19 +281,20 @@ def test_invalid_or_incomplete_responses_fail_open_without_retry(payload: object
     )
 
     assert calls == 1
-    assert outcome.explanation is None
-    assert outcome.warning and outcome.warning.startswith("Explanation unavailable:")
+    assert outcome.explanation is not None
+    assert "IS 2645:2003" in outcome.explanation["summary"]
+    assert outcome.warning == "AI explanation unavailable; showing a deterministic evidence summary."
 
 
 @pytest.mark.parametrize(
-    "failure, expected",
+    "failure",
     [
-        (requests.ConnectionError("refused"), "Ollama request failed"),
-        (requests.Timeout("late"), "Ollama request timed out"),
-        (MemoryError("out of memory"), "insufficient memory for explanation"),
+        requests.ConnectionError("refused"),
+        requests.Timeout("late"),
+        MemoryError("out of memory"),
     ],
 )
-def test_transport_and_memory_failures_fail_open(failure: Exception, expected: str) -> None:
+def test_transport_and_memory_failures_use_deterministic_fallback(failure: Exception) -> None:
     def post(*args: object, **kwargs: object) -> FakeResponse:
         raise failure
 
@@ -302,8 +303,9 @@ def test_transport_and_memory_failures_fail_open(failure: Exception, expected: s
         recommendation(),
     )
 
-    assert outcome.explanation is None
-    assert outcome.warning == f"Explanation unavailable: {expected}"
+    assert outcome.explanation is not None
+    assert outcome.explanation["key_points"]
+    assert outcome.warning == "AI explanation unavailable; showing a deterministic evidence summary."
 
 
 def test_messages_include_centralized_grounding_instruction() -> None:

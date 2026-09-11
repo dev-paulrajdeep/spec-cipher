@@ -24,6 +24,7 @@ MAX_EVIDENCE_TEXT_CHARACTERS = 500
 MAX_RELATIONSHIP_EVIDENCE_CHARACTERS = 250
 MAX_RELATED_STANDARDS = 8
 _TRUNCATION_SUFFIX = "... [truncated]"
+EXPLANATION_FALLBACK_WARNING = "AI explanation unavailable; showing a deterministic evidence summary."
 
 SYSTEM_INSTRUCTION = """You are the explanation layer of SpecCipher.
 
@@ -163,7 +164,7 @@ class QwenReasoner:
         ]
 
     def explain(self, user_input: str, recommendation: Recommendation) -> ExplanationOutcome:
-        """Generate one grounded explanation, or fail open without retries."""
+        """Generate a grounded explanation, falling back deterministically."""
         try:
             projection = self.project_recommendation(user_input, recommendation)
             response = self._post(
@@ -182,7 +183,33 @@ class QwenReasoner:
             content = _final_content(payload)
             return ExplanationOutcome(_parse_explanation(content))
         except Exception as exc:
-            return ExplanationOutcome(None, f"Explanation unavailable: {_short_failure_reason(exc)}")
+            return ExplanationOutcome(
+                deterministic_explanation(recommendation),
+                EXPLANATION_FALLBACK_WARNING,
+            )
+
+
+def deterministic_explanation(recommendation: Recommendation) -> Explanation:
+    evidence = recommendation.evidence
+    if evidence:
+        primary = evidence[0]
+        summary = (
+            f"{recommendation.standard_number} is recommended from retrieved evidence "
+            f"in {primary.source_file}, page {primary.page_start}."
+        )
+        key_points = [
+            f"Applicability score: {recommendation.applicability.overall:.2f}.",
+            f"Reranking strategy: {recommendation.rerank_result.strategy}.",
+            f"Evidence chunk: {primary.chunk_id}.",
+        ]
+    else:
+        summary = f"{recommendation.standard_number} is supported by the finalized recommendation pipeline."
+        key_points = [f"Applicability score: {recommendation.applicability.overall:.2f}."]
+    return {
+        "summary": summary,
+        "key_points": key_points,
+        "caveats": ["Verify the complete current official publication before procurement use."],
+    }
 
 
 def _read_timeout_seconds(raw_value: str | None) -> float:

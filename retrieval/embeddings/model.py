@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+import os
+from threading import RLock
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class SentenceTransformerEncoder:
@@ -51,6 +57,8 @@ class SentenceTransformerEncoder:
         self._embedding_dimension = embedding_dimension
         self._use_fp16 = use_fp16
         self._model = None
+        self._resolved_device = device
+        self._model_lock = RLock()
 
     @property
     def model_name(self) -> str:
@@ -93,13 +101,14 @@ class SentenceTransformerEncoder:
             return np.empty((0, dimension), dtype=np.float32)
         if any(not isinstance(text, str) or not text.strip() for text in texts):
             raise ValueError("Embedding input texts must all be non-empty strings")
-        vectors = self._load_model().encode(
-            texts,
-            batch_size=self._batch_size,
-            convert_to_numpy=True,
-            normalize_embeddings=self._normalize_embeddings,
-            show_progress_bar=False,
-        )
+        try:
+            vectors = self._encode_with_loaded_model(texts)
+        except Exception:
+            if self.device != "cuda":
+                raise
+            logger.warning("CUDA embedding inference failed; retrying with CPU", exc_info=True)
+            self._fallback_to_cpu()
+            vectors = self._encode_with_loaded_model(texts)
         values = np.ascontiguousarray(vectors, dtype=np.float32)
         if values.ndim != 2 or values.shape != (len(texts), self.dimension):
             raise RuntimeError(f"Embedding backend returned an incompatible shape: {values.shape}")
@@ -111,7 +120,9 @@ class SentenceTransformerEncoder:
         return values
 
     def _load_model(self):
-        if self._model is None:
+        with self._model_lock:
+            if self._model is not None:
+                return self._model
             try:
                 import torch
                 from sentence_transformers import SentenceTransformer
@@ -120,38 +131,75 @@ class SentenceTransformerEncoder:
                     "PyTorch and sentence-transformers are required for SentenceTransformerEncoder; "
                     "install the retrieval dependencies."
                 ) from exc
-            cuda_available = bool(torch.cuda.is_available())
-            if self._device == "cpu":
+
+            preferred_device = "cpu"
+            if self._device != "cpu":
+                try:
+                    if torch.cuda.is_available():
+                        preferred_device = "cuda"
+                except Exception:
+                    logger.warning("CUDA availability check failed; using CPU", exc_info=True)
+
+            try:
+                self._model = self._create_model(SentenceTransformer, torch, preferred_device)
+                self._resolved_device = preferred_device
+            except Exception:
+                if preferred_device != "cuda":
+                    raise
+                logger.warning("CUDA model initialization failed; retrying with CPU", exc_info=True)
+                self._clear_model(torch)
+                self._model = self._create_model(SentenceTransformer, torch, "cpu")
                 self._resolved_device = "cpu"
-            elif cuda_available:
-                self._resolved_device = "cuda"
-            elif self._allow_cpu_fallback:
-                self._resolved_device = "cpu"
-            else:
-                raise RuntimeError(
-                    "CUDA is unavailable for the configured embedding device; "
-                    "set allow_cpu_fallback=True or embedding_device='cpu' explicitly"
-                )
-            model_kwargs = {"torch_dtype": torch.float16} if self._use_fp16 and self._resolved_device == "cuda" else {}
-            self._model = SentenceTransformer(
-                self._model_name,
-                device=self._resolved_device,
-                model_kwargs=model_kwargs or None,
-            )
-            if self._max_seq_length is not None:
-                self._model.max_seq_length = self._max_seq_length
-        return self._model
+            return self._model
+
+    def _create_model(self, sentence_transformer, torch, device: str):
+        model_kwargs = {"torch_dtype": torch.float16} if self._use_fp16 and device == "cuda" else {}
+        if os.getenv("SPEC_CIPHER_HF_OFFLINE", "0") == "1":
+            model_kwargs["local_files_only"] = True
+        model = sentence_transformer(
+            self._model_name,
+            device=device,
+            model_kwargs=model_kwargs or None,
+        )
+        if self._max_seq_length is not None:
+            model.max_seq_length = self._max_seq_length
+        return model
+
+    def _encode_with_loaded_model(self, texts: list[str]):
+        return self._load_model().encode(
+            texts,
+            batch_size=self._batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=self._normalize_embeddings,
+            show_progress_bar=False,
+        )
+
+    def _fallback_to_cpu(self) -> None:
+        with self._model_lock:
+            import torch
+            from sentence_transformers import SentenceTransformer
+
+            self._clear_model(torch)
+            self._model = self._create_model(SentenceTransformer, torch, "cpu")
+            self._resolved_device = "cpu"
+
+    def _clear_model(self, torch) -> None:
+        self._model = None
+        import gc
+        gc.collect()
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            logger.debug("CUDA cleanup failed while switching to CPU", exc_info=True)
 
     def release(self) -> None:
         """Release GPU/memory resources held by the loaded model."""
-        if self._model is not None:
-            self._model = None
-            import gc
-            gc.collect()
-            try:
-                import torch
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-            except ImportError:
-                pass
+        with self._model_lock:
+            if self._model is not None:
+                try:
+                    import torch
+                    self._clear_model(torch)
+                except ImportError:
+                    self._model = None
 

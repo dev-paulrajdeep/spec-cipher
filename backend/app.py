@@ -14,7 +14,11 @@ from retrieval.config import RetrievalConfig
 from retrieval.corpus_config import CANONICAL_CORPUS_PATH
 from intelligence.pipeline import IntelligenceEngine
 from intelligence.relationships import CorpusKnowledgeBase
-from backend.qwen_reasoning import QwenReasoner
+from backend.qwen_reasoning import (
+    EXPLANATION_FALLBACK_WARNING,
+    QwenReasoner,
+    deterministic_explanation,
+)
 from backend.preflight import PreflightError, validate_bundle
 
 app = Flask(__name__)
@@ -34,11 +38,13 @@ CANONICAL_CORPUS_FILE = CANONICAL_CORPUS_PATH
 embedding_device = os.getenv("SPEC_CIPHER_EMBEDDING_DEVICE", "auto").strip().lower()
 allow_cpu_fallback = os.getenv("SPEC_CIPHER_ALLOW_CPU_FALLBACK", "1") == "1"
 reranker_enabled = os.getenv("SPEC_CIPHER_RERANKER_ENABLED", "0") == "1"
+hf_offline = os.getenv("SPEC_CIPHER_HF_OFFLINE", "0") == "1"
+if hf_offline:
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
 logging.info(
-    "Loading retrieval service: device=%s allow_cpu_fallback=%s reranker_enabled=%s",
-    embedding_device,
-    allow_cpu_fallback,
-    reranker_enabled,
+    "Loading retrieval service: device=%s allow_cpu_fallback=%s reranker_enabled=%s hf_offline=%s",
+    embedding_device, allow_cpu_fallback, reranker_enabled, hf_offline,
 )
 try:
     validate_bundle(
@@ -91,6 +97,20 @@ def index():
 @app.route("/<path:filename>")
 def frontend_files(filename):
     return send_from_directory(FRONTEND_DIR, filename)
+
+
+@app.route("/health")
+def health():
+    """Expose the loaded serving state for a lightweight demo readiness check."""
+    encoder = retriever._pipeline.encoder
+    return jsonify({
+        "status": "ready" if encoder._model is not None else "loading",
+        "model_loaded": encoder._model is not None,
+        "embedding_model": encoder.model_name,
+        "embedding_device": encoder.device,
+        "corpus": str(CANONICAL_CORPUS_FILE),
+        "hf_offline": hf_offline,
+    })
 
 
 # --------------------------------------------------
@@ -228,11 +248,11 @@ def _serialize_recommendations(user_input, recommendations):
     for recommendation in recommendations:
         payload = recommendation.to_dict()
         outcome = qwen_reasoner.explain(user_input, recommendation)
-        payload["explanation"] = outcome.explanation
-        if isinstance(outcome.explanation, dict) and outcome.explanation.get("summary"):
-            payload["explanation_text"] = outcome.explanation["summary"]
+        explanation = outcome.explanation or deterministic_explanation(recommendation)
+        payload["explanation"] = explanation
+        payload["explanation_text"] = explanation["summary"]
         if outcome.warning:
-            payload["warnings"].append(outcome.warning)
+            payload["warnings"].append(EXPLANATION_FALLBACK_WARNING)
         payloads.append(payload)
     return payloads
 
