@@ -536,6 +536,18 @@ def _validate_explanation(
     if _INJECTION_LIKE_RE.search(combined):
         raise ValueError("explanation contained prompt-injection-like content")
 
+    supplied_evidence = "\n".join(
+        [
+            *(item.get("text") or "" for item in projection.get("evidence") or []),
+            *(
+                item.get("evidence_text") or ""
+                for item in projection.get("related_standards") or []
+            ),
+        ]
+    )
+    if _INJECTION_LIKE_RE.search(supplied_evidence):
+        raise ValueError("retrieved evidence contained prompt-injection-like content")
+
     allowed = _allowed_standard_numbers(recommendation, projection)
     for match in _STANDARD_FIND_RE.finditer(combined):
         found = normalize_document_number(match.group(0))

@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "f63d727fbde0b879a313c5b4bb6137b8409f2c0b",
-    "indexed_at": "2026-09-12T05:41:23Z",
+    "commit": "7a6c95b82dc175eda6357aded88b30a117efd6a9",
+    "indexed_at": "2026-09-12T05:55:22Z",
     "project": "C-Users-paulr-OneDrive-DevArena-projects-SpecCipherML-spec-cipher",
     "nodes": 1631,
     "edges": 7759,
     "original_size": 21561344,
-    "compressed_size": 1613749,
+    "compressed_size": 1614969,
     "compression_level": 3
 }
