@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "7a6c95b82dc175eda6357aded88b30a117efd6a9",
-    "indexed_at": "2026-09-12T05:55:22Z",
-    "project": "C-Users-paulr-OneDrive-DevArena-projects-SpecCipherML-spec-cipher",
-    "nodes": 1631,
-    "edges": 7759,
-    "original_size": 21561344,
-    "compressed_size": 1614969,
+    "commit": "fbe99e085ef01898fd24a6fe57a6677f0cdfce3b",
+    "indexed_at": "2026-09-12T10:37:00Z",
+    "project": "C-Users-paulr-OneDrive-DevArena-projects-SpecCipherML-spec-cipher.worktrees-pasted-text-processing",
+    "nodes": 2154,
+    "edges": 8585,
+    "original_size": 861732864,
+    "compressed_size": 2151081,
     "compression_level": 3
 }
