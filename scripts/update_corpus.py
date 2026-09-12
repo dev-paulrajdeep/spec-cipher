@@ -21,12 +21,28 @@ Example:
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def _configure_huggingface_offline() -> None:
+    """Prevent Hub resolution during corpus updates unless explicitly enabled."""
+    if os.getenv("SPEC_CIPHER_ALLOW_MODEL_DOWNLOAD", "0").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+
+_configure_huggingface_offline()
 
 from corpus.update import update_corpus_from_source
 from corpus.update.workflow import default_source_dir
