@@ -16,7 +16,7 @@ from intelligence.instrumentation import PipelineMetrics
 from intelligence.models import Recommendation, ScoredCandidate
 from intelligence.relationships import CorpusKnowledgeBase
 from intelligence.reranking import CrossEncoderReranker, Reranker, TokenOverlapReranker
-from intelligence.standards import canonical_is_code
+from intelligence.standards import canonical_is_code, canonical_recommendation_id
 from retrieval.models import RetrievalResult
 
 logger = logging.getLogger(__name__)
@@ -141,9 +141,9 @@ class IntelligenceEngine:
     ) -> tuple[Recommendation, ...]:
         eligible = [
             item for item in candidates
-            if canonical_is_code(item.candidate.chunk.standard_number)
+            if canonical_recommendation_id(item.candidate.chunk.standard_number)
             and self.knowledge_base.has_independent_standard(
-                canonical_is_code(item.candidate.chunk.standard_number)
+                canonical_recommendation_id(item.candidate.chunk.standard_number)
             )
             and item.applicability
             and item.applicability.overall >= self.config.minimum_applicability
@@ -153,7 +153,7 @@ class IntelligenceEngine:
         ]
         groups: OrderedDict[str, list[ScoredCandidate]] = OrderedDict()
         for item in eligible:
-            standard = canonical_is_code(item.candidate.chunk.standard_number)
+            standard = canonical_recommendation_id(item.candidate.chunk.standard_number)
             if standard:
                 groups.setdefault(standard, []).append(item)
         ranked_groups = sorted(

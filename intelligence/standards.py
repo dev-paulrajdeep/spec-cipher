@@ -1,8 +1,10 @@
-"""Canonical handling for explicitly identified Indian Standards."""
+"""Canonical handling for recommendation document identities."""
 
 from __future__ import annotations
 
 import re
+
+from corpus.processing.normalizer import normalize_document_number
 
 
 _IS_CODE_RE = re.compile(
@@ -30,3 +32,17 @@ def canonical_is_code(value: str | None) -> str | None:
     if year:
         code += f":{year}"
     return code
+
+
+def canonical_recommendation_id(value: str | None) -> str | None:
+    """Return a stable recommendation ID for independently indexed documents.
+
+    Prefers normalized IS codes. Otherwise accepts normalized document numbers
+    already present on corpus identities. Does not invent identifiers from prose.
+    """
+    is_code = canonical_is_code(value)
+    if is_code:
+        return is_code
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return normalize_document_number(value)

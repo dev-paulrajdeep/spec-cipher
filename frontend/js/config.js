@@ -5,7 +5,8 @@ const CONFIG = {
         ANALYZE: '/get_result'
     },
 
-    TIMEOUT_MS: 120000
+    // Allow cold Ollama model load + retrieval under keep_alive=0.
+    TIMEOUT_MS: 240000
 };
 
 window.CONFIG = CONFIG;

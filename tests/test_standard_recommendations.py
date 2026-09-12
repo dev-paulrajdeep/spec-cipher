@@ -25,6 +25,14 @@ def test_is_code_normalization_preserves_part_and_year() -> None:
     assert canonical_is_code("building standard") is None
 
 
+def test_recommendation_id_accepts_independently_indexed_document_numbers() -> None:
+    from intelligence.standards import canonical_recommendation_id
+
+    assert canonical_recommendation_id("BOOK-18-ELECTRONICS-AND") == "BOOK-18-ELECTRONICS-AND"
+    assert canonical_recommendation_id("IS 456:2000") == "IS 456:2000"
+    assert canonical_recommendation_id("building standard") is None
+
+
 def test_engine_returns_at_most_five_unique_explicit_standards() -> None:
     candidates = tuple(
         result(f"chunk-{index}", f"IS {index}:2024")

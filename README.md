@@ -115,14 +115,16 @@ Qwen/Ollama remains optional explanation-only.
 | --- | --- | --- |
 | `SPEC_CIPHER_BIS_SOURCE_DIR` | PDF source directory | `officialBIS/` |
 | `SPEC_CIPHER_OLLAMA_MODEL` | Optional explanation model name | `qwen3-4b-thinking:latest` |
-| `SPEC_CIPHER_OLLAMA_TIMEOUT_SECONDS` | Bounded Ollama timeout | `5` |
+| `SPEC_CIPHER_OLLAMA_TIMEOUT_SECONDS` | Bounded Ollama timeout | `180` |
+| `SPEC_CIPHER_OLLAMA_THINK` | Enable model thinking tokens (`1`/`0`) | `0` |
+| `SPEC_CIPHER_OLLAMA_KEEP_ALIVE` | Ollama keep-alive after explanation | `0` |
 | `SPEC_CIPHER_HF_OFFLINE` | Force Hugging Face offline mode | unset |
 | `SPEC_CIPHER_EMBEDDING_DEVICE` | `auto` / `cuda` / `cpu` | `auto` |
 | `SPEC_CIPHER_ALLOW_CPU_FALLBACK` | Allow CPU if CUDA fails | `1` |
 | `SPEC_CIPHER_HOST` / `SPEC_CIPHER_PORT` | Flask bind address | `127.0.0.1` / `5000` |
 
-Legacy aliases `QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, and `QWEN_TIMEOUT_SECONDS`
-remain supported.
+Legacy aliases `QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, `QWEN_TIMEOUT_SECONDS`,
+`QWEN_THINK`, and `QWEN_KEEP_ALIVE` remain supported.
 
 ### Current capability and boundary
 

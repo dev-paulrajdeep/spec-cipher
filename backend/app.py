@@ -253,7 +253,9 @@ def analyse_input():
 def _serialize_recommendations(user_input, recommendations):
     payloads = []
     for index, recommendation in enumerate(recommendations):
-        payload = recommendation.to_dict()
+        # Snapshot authoritative recommendation fields before optional Qwen work.
+        before_qwen = recommendation.to_dict()
+        payload = dict(before_qwen)
         if index == 0:
             outcome = qwen_reasoner.explain(user_input, recommendation)
             explanation = outcome.explanation or deterministic_explanation(recommendation)
@@ -266,11 +268,21 @@ def _serialize_recommendations(user_input, recommendations):
             )
             if outcome.warning:
                 payload["explanation_note"] = outcome.warning
+            logger.info(
+                "Explanation attached mode=%s fallback=%s standard=%s",
+                mode,
+                outcome.fallback_reason or "none",
+                before_qwen.get("standard_number"),
+            )
         else:
             explanation = deterministic_explanation(recommendation)
             payload["explanation_mode"] = "deterministic"
             payload["explanation_label"] = "Evidence-grounded summary"
         payload["explanation"], payload["explanation_text"] = explanation, explanation["summary"]
+        # Qwen may only add explanation fields; never mutate ranking/selection fields.
+        for key, value in before_qwen.items():
+            if key not in {"explanation", "explanation_text", "warnings"}:
+                payload[key] = value
         payloads.append(payload)
     return payloads
 
