@@ -564,6 +564,160 @@ def test_generic_non_is_document_parses_and_chunks(tmp_path: Path) -> None:
     assert item.document_id == "DOC_2026_001"
 
 
+def test_mapping_catalog_never_enters_eligible_corpus_or_faiss(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "mapping-booklet.pdf",
+        header_lines=[
+            "BIS mapping of standards to government schemes",
+            "This booklet maps more than 3200 Indian Standards.",
+        ],
+        body="\n".join(f"IS {1000 + index} Standard reference {index}" for index in range(40)),
+        pages=4,
+    )
+    root = tmp_path / "project"
+    data_dir = root / "corpus" / "data"
+    index_dir = root / "retrieval-index"
+
+    summary = update_corpus_from_source(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=data_dir,
+        index_dir=index_dir,
+        rebuild_index=False,
+    )
+
+    assert summary.documents_eligible == 0
+    item = summary.processed[0]
+    assert item.document_type in {"catalog", "index", "list"}
+    assert item.recommendation_eligible is False
+    assert item.standard_number is None
+    eligible = CorpusChunkLoader().load(data_dir / "corpus.eligible.chunks.jsonl")
+    assert eligible.chunks == ()
+
+    pipeline = RetrievalPipeline(
+        RetrievalConfig(embedding_model="static-test", embedding_dimension=4),
+        encoder=StaticEncoder(),
+    )
+    pipeline.build_and_persist(data_dir / "corpus.eligible.chunks.jsonl", index_dir)
+    bundle = IndexPersistence().load(
+        index_dir,
+        expected_embedding_backend="custom",
+        expected_embedding_model="static-test",
+        expected_embedding_model_version="test",
+        expected_dimension=4,
+        expected_normalize_embeddings=True,
+    )
+    assert bundle.index.count == 0
+    assert bundle.metadata.chunk_count == 0
+
+
+def test_single_standard_content_identity_enters_faiss_and_retrieves(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "IS-269.pdf",
+        header_lines=["IS 269:2015", "Ordinary Portland Cement - Specification"],
+        body="1 Scope\nRequirements for ordinary Portland cement used in concrete.",
+    )
+    root = tmp_path / "project"
+    data_dir = root / "corpus" / "data"
+    summary = update_corpus_from_source(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=data_dir,
+        rebuild_index=False,
+    )
+
+    item = summary.processed[0]
+    assert item.document_type == "standard"
+    assert item.identity_status == "resolved"
+    assert item.standard_number == "IS 269"
+    assert item.recommendation_eligible is True
+
+    eligible_path = data_dir / "corpus.eligible.chunks.jsonl"
+    eligible = CorpusChunkLoader().load(eligible_path)
+    assert len(eligible.chunks) == summary.chunks_eligible
+    retriever = RetrievalPipeline(
+        RetrievalConfig(embedding_model="static-test", embedding_dimension=4),
+        encoder=StaticEncoder(),
+    ).build_from_corpus(eligible_path)
+    results = retriever.search("concrete", top_k=1)
+    assert results
+    assert results[0].chunk.standard_number == "IS 269"
+
+
+def test_plausible_filename_without_content_identity_stays_ineligible(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "IS-269.pdf",
+        header_lines=["Technical notes", "General construction information"],
+        body="This document contains no owning standard or publication identifier.",
+    )
+    summary = update_corpus_from_source(
+        project_root=tmp_path / "project",
+        source_dir=source,
+        corpus_data_dir=tmp_path / "project" / "corpus" / "data",
+        rebuild_index=False,
+    )
+
+    item = summary.processed[0]
+    assert item.standard_number is None
+    assert item.identity_status == "unresolved"
+    assert item.recommendation_eligible is False
+
+
+def test_filename_matching_multi_reference_document_stays_reference_only(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "IS-269.pdf",
+        header_lines=["List of referenced standards for concrete products"],
+        body="\n".join(
+            [
+                "IS 269 Ordinary Portland Cement - Specification",
+                *[f"IS {300 + index} Related standard {index}" for index in range(20)],
+            ]
+        ),
+        pages=3,
+    )
+    summary = update_corpus_from_source(
+        project_root=tmp_path / "project",
+        source_dir=source,
+        corpus_data_dir=tmp_path / "project" / "corpus" / "data",
+        rebuild_index=False,
+    )
+
+    item = summary.processed[0]
+    assert item.standard_number is None
+    assert item.document_type == "list"
+    assert item.recommendation_eligible is False
+    assert summary.chunks_eligible == 0
+
+
+def test_catalog_with_700_standard_mentions_creates_no_standard_documents(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "standards-index.pdf",
+        header_lines=["Index of standards", "Reference catalogue"],
+        body="\n".join(f"IS {1000 + index} Referenced publication {index}" for index in range(700)),
+        pages=24,
+    )
+    root = tmp_path / "project"
+    data_dir = root / "corpus" / "data"
+    summary = update_corpus_from_source(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=data_dir,
+        rebuild_index=False,
+    )
+
+    assert summary.documents_total == 1
+    assert summary.documents_eligible == 0
+    assert summary.processed[0].standard_number is None
+    manifest = json.loads((data_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert len(manifest["documents"]) == 1
+    assert all(document["standard_number"] is None for document in manifest["documents"])
+
+
 def test_no_domain_specific_parser_assumptions_in_identity_module() -> None:
     source = (PROJECT_ROOT / "corpus" / "update" / "identity.py").read_text(encoding="utf-8")
     for banned in ("IS 5120", "IS 1520", "IS 8034", "centrifugal pump", "IS 325", "IS 9137"):

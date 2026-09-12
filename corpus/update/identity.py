@@ -34,7 +34,8 @@ DocumentType = Literal[
 _CATALOG_HINT_RE = re.compile(
     r"\b(list of|annexure|products notified|compulsory\s+marking|simplified procedure|"
     r"is number\s+title|grant of licence|product\s+category|schedule of|index of standards|"
-    r"product list|catalogue|catalog)\b",
+    r"product list|catalogue|catalog|mapping|schemes?\s+through\s+standards|"
+    r"more than\s+\d+\s+(?:indian\s+)?standards|standards\s+tables?)\b",
     re.IGNORECASE,
 )
 _LIST_HINT_RE = re.compile(r"\b(list of|products notified|product list|schedule of)\b", re.I)
@@ -46,7 +47,7 @@ _MANUAL_HINT_RE = re.compile(
 _FAMILY_PREFIX_RE = re.compile(r"^(?:ISO|IEC|IS|SP|EN|BS|ASTM)\b", re.I)
 # Distinct base identifiers beyond this count without a filename identity are
 # treated as catalog/list documents rather than a single publication.
-_MULTI_DOCUMENT_THRESHOLD = 3
+_MULTI_DOCUMENT_THRESHOLD = 8
 _AMBIGUOUS_FILENAME_STEMS = frozenset(
     {
         "temp",
@@ -182,7 +183,7 @@ def resolve_document_identity(
     candidates = find_document_numbers(leading_text)
     base_candidates = tuple(dict.fromkeys(_base_document_number(item) for item in candidates))
     catalog_like = bool(_CATALOG_HINT_RE.search(leading_text)) or (
-        len(base_candidates) >= _MULTI_DOCUMENT_THRESHOLD and filename_id is None
+        len(base_candidates) >= _MULTI_DOCUMENT_THRESHOLD
     )
     header_title = _title_from_leading_text(leading_text, filename_id or title_id)
     synthetic_id = f"doc_{(document_fingerprint or 'unknown')[:16]}"
@@ -231,8 +232,26 @@ def resolve_document_identity(
         filename_supported_by_content = filename_base in base_candidates or (
             title_id is not None and _base_document_number(title_id) == filename_base
         )
-        # Catalog/list bodies win over download-style filenames that only look like ids.
-        if catalog_like and not filename_supported_by_content:
+        # A filename is only a candidate identity; the PDF must corroborate it.
+        if not filename_supported_by_content:
+            document_type = classify_document_type(
+                leading_text=leading_text,
+                document_number=None,
+                catalog_like=catalog_like,
+            )
+            return _reference_only(
+                document_type=document_type,
+                source="filename_unsupported",
+                reason=(
+                    "The filename suggests an identity, but the PDF's leading content "
+                    "does not corroborate it as the document owner. Retained as "
+                    "reference-only; mentioned numbers are not promoted."
+                ),
+                title=header_title or ((pdf_title or "").strip() or None),
+            )
+        # Multi-reference structure wins even when the filename happens to match
+        # one mentioned number.
+        if catalog_like:
             document_type = classify_document_type(
                 leading_text=leading_text,
                 document_number=None,
@@ -242,10 +261,9 @@ def resolve_document_identity(
                 document_type=document_type,
                 source="catalog",
                 reason=(
-                    "Document looks like a catalog/list that mentions multiple document "
-                    "numbers, and the filename identity does not appear as the document "
-                    "owner in the leading pages. Retained as reference-only; mentioned "
-                    "numbers are not promoted."
+                    "Document-level evidence shows a catalog/list/mapping or multiple "
+                    "publication references. Retained as reference-only; a mentioned "
+                    "number is not promoted to document identity."
                 ),
                 title=header_title or ((pdf_title or "").strip() or None),
             )

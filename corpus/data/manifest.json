@@ -1,27 +1,13 @@
 {
   "chunk_count": 51,
-  "chunk_count_eligible": 8,
+  "chunk_count_eligible": 0,
   "chunking_version": "1.1",
-  "chunks_fingerprint": "1cf8a67c306b5b350433f1f01695454ee70c47cf2ae4a211024c03611c8a1ceb",
-  "corpus_fingerprint": "9bce49976e6526941796e511a48fb771fcdd5e968826827f279185c4262d4e09",
+  "chunks_fingerprint": "1c7d7307e9a29def2296829eeb46074a88e5fbce1287e63b013ec15e4db9d8af",
+  "corpus_fingerprint": "1cd99ca376530cadc1bdb9346f61e1035f825dd472e80481a25eb06f18309bc1",
   "document_count": 4,
-  "document_count_catalog_list": 3,
-  "document_count_eligible": 1,
+  "document_count_catalog_list": 4,
+  "document_count_eligible": 0,
   "documents": [
-    {
-      "chunk_count": 8,
-      "document_fingerprint": "3f3b2437e66bf665c1ac4acddc127e9f583f033e5e01e6eb081152a77c54182f",
-      "document_id": "BOOK_18_ELECTRONICS_AND",
-      "document_path": "documents/BOOK_18_ELECTRONICS_AND.json",
-      "document_type": "technical_document",
-      "identity_status": "resolved",
-      "page_count": 20,
-      "recommendation_eligible": true,
-      "source_filename": "Book-18-Electronics-and-Information-Technology.pdf",
-      "source_path": "Book-18-Electronics-and-Information-Technology.pdf",
-      "standard_number": "BOOK-18-ELECTRONICS-AND",
-      "title": "Foreword"
-    },
     {
       "chunk_count": 8,
       "document_fingerprint": "14fdca6039121576cd8bb7bfaee034ddc66d44df73628b9f7dc99c7e8bc7eec3",
@@ -35,6 +21,20 @@
       "source_path": "temp_2131689472.pdf",
       "standard_number": null,
       "title": "Annexure-2"
+    },
+    {
+      "chunk_count": 8,
+      "document_fingerprint": "3f3b2437e66bf665c1ac4acddc127e9f583f033e5e01e6eb081152a77c54182f",
+      "document_id": "doc_3f3b2437e66bf665",
+      "document_path": "documents/doc_3f3b2437e66bf665.json",
+      "document_type": "catalog",
+      "identity_status": "unresolved",
+      "page_count": 20,
+      "recommendation_eligible": false,
+      "source_filename": "Book-18-Electronics-and-Information-Technology.pdf",
+      "source_path": "Book-18-Electronics-and-Information-Technology.pdf",
+      "standard_number": null,
+      "title": "Foreword"
     },
     {
       "chunk_count": 23,
@@ -65,13 +65,28 @@
       "title": "Annexure-1"
     }
   ],
-  "eligible_chunks_fingerprint": "80a5e350c97fcdf64a29bfb34efdc69b80d75d2a2e997ba47820d9f3c4310e59",
+  "eligible_chunks_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "embedding_dimension": 1024,
   "embedding_model": "BAAI/bge-m3",
-  "failed_documents": [],
+  "failed_documents": [
+    {
+      "error_class": "too_many_pages",
+      "filename": "SP 7_2026-1-1499.pdf",
+      "message": "PDF has 1499 pages; limit is 400.",
+      "remediation": "Provide a smaller publication or split volumes.",
+      "source_path": "SP 7_2026-1-1499.pdf"
+    },
+    {
+      "error_class": "too_many_pages",
+      "filename": "SP 7_2026-1500-2999.pdf",
+      "message": "PDF has 1500 pages; limit is 400.",
+      "remediation": "Provide a smaller publication or split volumes.",
+      "source_path": "SP 7_2026-1500-2999.pdf"
+    }
+  ],
   "historical_checklist_untouched": true,
-  "index_fingerprint": "7b8d233999ffa03324fe57cb8b70af43bf0e213120200d60896334ae04d04ce3",
-  "indexed_chunk_count": 8,
+  "index_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "indexed_chunk_count": 0,
   "ingestion_version": "1.2",
   "recommendation_corpus": "corpus.eligible.chunks.jsonl",
   "retrieval_corpus": "corpus.chunks.jsonl",
@@ -85,6 +100,13 @@
       "recommendation_eligible": false,
       "source_path": "temp_2131689472.pdf",
       "title": "Annexure-2"
+    },
+    {
+      "document_id": "doc_3f3b2437e66bf665",
+      "document_type": "catalog",
+      "recommendation_eligible": false,
+      "source_path": "Book-18-Electronics-and-Information-Technology.pdf",
+      "title": "Foreword"
     },
     {
       "document_id": "doc_7c55d2031ef83fb3",
