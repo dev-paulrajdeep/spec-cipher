@@ -19,22 +19,18 @@ def app_module():
         ("general-purpose centrifugal pumps for industrial water service", "no_match"),
         ("centrifugal pumps", "no_match"),
         ("induction motors", "no_match"),
-        ("fire safety requirements for a commercial building", "no_match"),
+        ("fire safety requirements for a commercial building", "recommendations"),
         ("quantum satellite launch licensing", "no_match"),
         ("industrial pumps", "no_match"),
     ),
 )
-def test_demo_queries_are_no_match_without_eligible_standards(
+def test_demo_queries_respect_source_corpus_applicability(
     query: str,
     expected_state: str,
     app_module,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """With catalog-only / zero-eligible officialBIS corpus, recommendations stay empty.
-
-    Historical IS 5120 checklist data is not promoted into recommendations when an
-    officialBIS-derived corpus exists without recommendation-eligible documents.
-    """
+    """Only queries aligned with the current officialBIS-derived standard are recommended."""
     monkeypatch.setattr(
         app_module.qwen_reasoner,
         "explain",
@@ -45,5 +41,9 @@ def test_demo_queries_are_no_match_without_eligible_standards(
     assert response.status_code == 200
     payload = response.get_json()
     assert payload["result_state"] == expected_state
-    assert payload["recommendations"] == []
-    assert "No sufficiently supported" in payload["warnings"][0]
+    if expected_state == "no_match":
+        assert payload["recommendations"] == []
+        assert "No sufficiently supported" in payload["warnings"][0]
+    else:
+        assert payload["recommendations"]
+        assert payload["recommendations"][0]["standard_number"] == "SP 7:2026"

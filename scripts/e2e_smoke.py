@@ -172,7 +172,11 @@ def stop_server(server: StartedServer) -> None:
 
 
 def stable_recommendation(payload: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in payload.items() if key not in {"explanation", "warnings"}}
+    return {
+        key: value
+        for key, value in payload.items()
+        if key != "warnings" and not key.startswith("explanation")
+    }
 
 
 def rendered_score(score: Any) -> str:

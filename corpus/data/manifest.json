@@ -1,13 +1,55 @@
 {
-  "chunk_count": 51,
-  "chunk_count_eligible": 0,
+  "chunk_count": 13151,
+  "chunk_count_eligible": 1177,
   "chunking_version": "1.1",
-  "chunks_fingerprint": "1c7d7307e9a29def2296829eeb46074a88e5fbce1287e63b013ec15e4db9d8af",
-  "corpus_fingerprint": "1cd99ca376530cadc1bdb9346f61e1035f825dd472e80481a25eb06f18309bc1",
-  "document_count": 4,
-  "document_count_catalog_list": 4,
-  "document_count_eligible": 0,
+  "chunks_fingerprint": "e562b25f620080ea676de66b91f22076eb4706666add4aa85404dbd07c870baf",
+  "corpus_fingerprint": "15a7fb03dfbdf4fae9dde9041b7be4d627f041090084e1aec2684c425038ea3c",
+  "document_count": 12,
+  "document_count_catalog_list": 5,
+  "document_count_eligible": 1,
   "documents": [
+    {
+      "chunk_count": 1177,
+      "document_fingerprint": "fcd35294ae2b175e48c8a1f97ae678b6496d0dbaf5eb9205853510af46a8c6fe",
+      "document_id": "SP_7_2026",
+      "document_path": "documents/SP_7_2026.json",
+      "document_type": "standard",
+      "identity_status": "resolved",
+      "page_count": 400,
+      "recommendation_eligible": true,
+      "source_filename": "SP 7_2026-1-400.pdf",
+      "source_path": "SP 7_2026-1-400.pdf",
+      "standard_number": "SP 7:2026",
+      "title": "NATIONAL BUILDING CONSTRUCTION"
+    },
+    {
+      "chunk_count": 386,
+      "document_fingerprint": "018bea25a543eeeadebd6201428d92216e0878b6306ac9fe1052661748001e07",
+      "document_id": "doc_018bea25a543eeea",
+      "document_path": "documents/doc_018bea25a543eeea.json",
+      "document_type": "unknown",
+      "identity_status": "unresolved",
+      "page_count": 199,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-2801-2999.pdf",
+      "source_path": "SP 7_2026-2801-2999.pdf",
+      "standard_number": null,
+      "title": "REMARK 1:  Any state or area where the municipal supply caters to municipal/public yard hydrant system with hydrant outlets provided throughout the premises"
+    },
+    {
+      "chunk_count": 1949,
+      "document_fingerprint": "0bde6140f76dda6f8a6ec4da8142b165bb0b31a747c7c5c355505a83a7dc5be7",
+      "document_id": "doc_0bde6140f76dda6f",
+      "document_path": "documents/doc_0bde6140f76dda6f.json",
+      "document_type": "unknown",
+      "identity_status": "unresolved",
+      "page_count": 400,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-2001-2400.pdf",
+      "source_path": "SP 7_2026-2001-2400.pdf",
+      "standard_number": null,
+      "title": "Humidity Control — The following considerations should be considered for humidity control:"
+    },
     {
       "chunk_count": 8,
       "document_fingerprint": "14fdca6039121576cd8bb7bfaee034ddc66d44df73628b9f7dc99c7e8bc7eec3",
@@ -21,6 +63,20 @@
       "source_path": "temp_2131689472.pdf",
       "standard_number": null,
       "title": "Annexure-2"
+    },
+    {
+      "chunk_count": 2614,
+      "document_fingerprint": "3a732e30ced4ec5f365c0085f8125d1b3fe7790e05af0e88e5602dd37f1521a2",
+      "document_id": "doc_3a732e30ced4ec5f",
+      "document_path": "documents/doc_3a732e30ced4ec5f.json",
+      "document_type": "unknown",
+      "identity_status": "unresolved",
+      "page_count": 400,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-2401-2800.pdf",
+      "source_path": "SP 7_2026-2401-2800.pdf",
+      "standard_number": null,
+      "title": "Several peripheral items are associated with escalators/moving walk installation, of which some should always be"
     },
     {
       "chunk_count": 8,
@@ -63,30 +119,71 @@
       "source_path": "temp_2131689475.pdf",
       "standard_number": null,
       "title": "Annexure-1"
-    }
-  ],
-  "eligible_chunks_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "embedding_dimension": 1024,
-  "embedding_model": "BAAI/bge-m3",
-  "failed_documents": [
-    {
-      "error_class": "too_many_pages",
-      "filename": "SP 7_2026-1-1499.pdf",
-      "message": "PDF has 1499 pages; limit is 400.",
-      "remediation": "Provide a smaller publication or split volumes.",
-      "source_path": "SP 7_2026-1-1499.pdf"
     },
     {
-      "error_class": "too_many_pages",
-      "filename": "SP 7_2026-1500-2999.pdf",
-      "message": "PDF has 1500 pages; limit is 400.",
-      "remediation": "Provide a smaller publication or split volumes.",
-      "source_path": "SP 7_2026-1500-2999.pdf"
+      "chunk_count": 1816,
+      "document_fingerprint": "9287b2f05b2c15d49974d2e1cd331f16554371050c7bbcc10aa87d2682311d7c",
+      "document_id": "doc_9287b2f05b2c15d4",
+      "document_path": "documents/doc_9287b2f05b2c15d4.json",
+      "document_type": "unknown",
+      "identity_status": "unresolved",
+      "page_count": 400,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-1601-2000.pdf",
+      "source_path": "SP 7_2026-1601-2000.pdf",
+      "standard_number": null,
+      "title": "indoor temperature lower than those outside under the sun.  For this purpose, windows and other openings are"
+    },
+    {
+      "chunk_count": 1804,
+      "document_fingerprint": "c7a95a2556c13e91154f41a8928f067a60522041c118caa126b85e69d25f5acd",
+      "document_id": "doc_c7a95a2556c13e91",
+      "document_path": "documents/doc_c7a95a2556c13e91.json",
+      "document_type": "unknown",
+      "identity_status": "unresolved",
+      "page_count": 400,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-401-800.pdf",
+      "source_path": "SP 7_2026-401-800.pdf",
+      "standard_number": null,
+      "title": "This method should only be used for drilling boreholes in bouldery and gravelly strata where other boring methods"
+    },
+    {
+      "chunk_count": 1780,
+      "document_fingerprint": "dd1bddd7ec365c2165a47f176e3d8f0d69f6ead8d73e1468c2cee4d54b1cd18d",
+      "document_id": "doc_dd1bddd7ec365c21",
+      "document_path": "documents/doc_dd1bddd7ec365c21.json",
+      "document_type": "list",
+      "identity_status": "unresolved",
+      "page_count": 400,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-801-1200.pdf",
+      "source_path": "SP 7_2026-801-1200.pdf",
+      "standard_number": null,
+      "title": "NATIONAL BUILDING CONSTRUCTION STANDARDS"
+    },
+    {
+      "chunk_count": 1574,
+      "document_fingerprint": "f2cad03a98efc6760c843885a37643381335c56d0fd9de72c673c637728d3b15",
+      "document_id": "doc_f2cad03a98efc676",
+      "document_path": "documents/doc_f2cad03a98efc676.json",
+      "document_type": "manual",
+      "identity_status": "unresolved",
+      "page_count": 400,
+      "recommendation_eligible": false,
+      "source_filename": "SP 7_2026-1201-1600.pdf",
+      "source_path": "SP 7_2026-1201-1600.pdf",
+      "standard_number": null,
+      "title": "System C3 — H-shaped frames with a cantilever beam shall be provided with rigid connection at"
     }
   ],
+  "eligible_chunks_fingerprint": "9b2abba185a87bb7fb98735b21fd517f0ca483d7734299fbec4b034d3bd8c776",
+  "embedding_dimension": 1024,
+  "embedding_model": "BAAI/bge-m3",
+  "failed_documents": [],
   "historical_checklist_untouched": true,
-  "index_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "indexed_chunk_count": 0,
+  "index_fingerprint": "b0088cc90aca5d307bbf8abcc61fa7fa63d7ac72cb3d60b409a10eff4e55accc",
+  "indexed_chunk_count": 1177,
   "ingestion_version": "1.2",
   "recommendation_corpus": "corpus.eligible.chunks.jsonl",
   "retrieval_corpus": "corpus.chunks.jsonl",
@@ -95,11 +192,32 @@
   "source_policy": "user_supplied_pdfs_only",
   "unresolved_documents": [
     {
+      "document_id": "doc_018bea25a543eeea",
+      "document_type": "unknown",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-2801-2999.pdf",
+      "title": "REMARK 1:  Any state or area where the municipal supply caters to municipal/public yard hydrant system with hydrant outlets provided throughout the premises"
+    },
+    {
+      "document_id": "doc_0bde6140f76dda6f",
+      "document_type": "unknown",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-2001-2400.pdf",
+      "title": "Humidity Control — The following considerations should be considered for humidity control:"
+    },
+    {
       "document_id": "doc_14fdca6039121576",
       "document_type": "list",
       "recommendation_eligible": false,
       "source_path": "temp_2131689472.pdf",
       "title": "Annexure-2"
+    },
+    {
+      "document_id": "doc_3a732e30ced4ec5f",
+      "document_type": "unknown",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-2401-2800.pdf",
+      "title": "Several peripheral items are associated with escalators/moving walk installation, of which some should always be"
     },
     {
       "document_id": "doc_3f3b2437e66bf665",
@@ -121,6 +239,34 @@
       "recommendation_eligible": false,
       "source_path": "temp_2131689475.pdf",
       "title": "Annexure-1"
+    },
+    {
+      "document_id": "doc_9287b2f05b2c15d4",
+      "document_type": "unknown",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-1601-2000.pdf",
+      "title": "indoor temperature lower than those outside under the sun.  For this purpose, windows and other openings are"
+    },
+    {
+      "document_id": "doc_c7a95a2556c13e91",
+      "document_type": "unknown",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-401-800.pdf",
+      "title": "This method should only be used for drilling boreholes in bouldery and gravelly strata where other boring methods"
+    },
+    {
+      "document_id": "doc_dd1bddd7ec365c21",
+      "document_type": "list",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-801-1200.pdf",
+      "title": "NATIONAL BUILDING CONSTRUCTION STANDARDS"
+    },
+    {
+      "document_id": "doc_f2cad03a98efc676",
+      "document_type": "manual",
+      "recommendation_eligible": false,
+      "source_path": "SP 7_2026-1201-1600.pdf",
+      "title": "System C3 — H-shaped frames with a cantilever beam shall be provided with rigid connection at"
     }
   ]
 }

@@ -146,6 +146,7 @@ class IntelligenceEngine:
                 canonical_recommendation_id(item.candidate.chunk.standard_number)
             )
             and item.applicability
+            and item.applicability.product_match > 0
             and item.applicability.overall >= self.config.minimum_applicability
             and item.rerank_result
             and item.final_score is not None

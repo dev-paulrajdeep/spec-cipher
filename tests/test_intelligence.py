@@ -141,6 +141,24 @@ def test_engine_rejects_candidates_with_zero_applicability(knowledge) -> None:
     assert run.candidates[0].applicability.overall == 0.0
 
 
+def test_engine_rejects_candidates_without_product_alignment(knowledge) -> None:
+    candidate = result(
+        "building",
+        "IS 2645:2003",
+        "industrial water service requirements",
+        1,
+    )
+
+    run = IntelligenceEngine(knowledge_base=knowledge).recommend(
+        "general-purpose centrifugal pumps for industrial water service",
+        (candidate,),
+    )
+
+    assert run.recommendations == ()
+    assert run.candidates[0].applicability is not None
+    assert run.candidates[0].applicability.product_match == 0.0
+
+
 def test_engine_rejects_generic_requirement_even_when_a_chunk_is_retrieved(knowledge) -> None:
     run = IntelligenceEngine(knowledge_base=knowledge).recommend(
         "industrial equipment requirements", (result("candidate", "IS 2645:2003", "industrial equipment requirements", 1),)

@@ -17,7 +17,7 @@ _APPLICATION_TERMS = frozenset({
 })
 _PRODUCT_TERMS = frozenset({
     "pump", "pumps", "centrifugal", "impeller", "volute", "motor", "motors", "induction",
-    "efficiency", "valve", "valves", "compressor", "boiler", "transformer",
+    "efficiency", "valve", "valves", "compressor", "boiler", "transformer", "waterproofing",
 })
 
 
