@@ -16,10 +16,10 @@ def app_module():
 @pytest.mark.parametrize(
     ("query", "expected_state"),
     (
+        ("building design considering wind effects on occupant comfort inside and outside", "recommendations"),
         ("general-purpose centrifugal pumps for industrial water service", "no_match"),
         ("centrifugal pumps", "no_match"),
         ("induction motors", "no_match"),
-        ("fire safety requirements for a commercial building", "recommendations"),
         ("quantum satellite launch licensing", "no_match"),
         ("industrial pumps", "no_match"),
     ),
@@ -30,7 +30,7 @@ def test_demo_queries_respect_source_corpus_applicability(
     app_module,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Only queries aligned with the current officialBIS-derived standard are recommended."""
+    """Only supported queries for the current officialBIS-derived corpus are recommended."""
     monkeypatch.setattr(
         app_module.qwen_reasoner,
         "explain",
@@ -46,4 +46,12 @@ def test_demo_queries_respect_source_corpus_applicability(
         assert "No sufficiently supported" in payload["warnings"][0]
     else:
         assert payload["recommendations"]
-        assert payload["recommendations"][0]["standard_number"] == "SP 7:2026"
+        recommendation = payload["recommendations"][0]
+        assert recommendation["standard_number"] == "SP 7:2026"
+        assert recommendation["title"] == "NATIONAL BUILDING CONSTRUCTION"
+        evidence = recommendation["evidence"]
+        assert evidence
+        assert evidence[0]["section_number"] == "4.1.11"
+        assert evidence[0]["page_start"] == 185
+        assert evidence[0]["page_end"] == 186
+        assert "effects of wind on the comfort of people inside" in evidence[0]["text"].lower()

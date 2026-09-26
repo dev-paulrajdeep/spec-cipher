@@ -15,8 +15,8 @@ from scripts.e2e_smoke import (
 
 
 def test_smoke_defaults_and_recommendation_projection() -> None:
-    assert DEFAULT_QUERY == "general-purpose centrifugal pumps for industrial water service"
-    assert DEFAULT_NO_RESULT_QUERY.startswith("fire safety")
+    assert DEFAULT_QUERY == "building design considering wind effects on occupant comfort inside and outside"
+    assert DEFAULT_NO_RESULT_QUERY == "general-purpose centrifugal pumps for industrial water service"
     payload = {
         "standard_number": "IS 1234:2026",
         "title": "Safety standard",

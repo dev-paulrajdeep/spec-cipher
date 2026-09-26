@@ -2,12 +2,11 @@
 
 ### AI-Powered Standards Recommendation Engine
 
-> **Judge-ready MVP scope (September 2026).** Runtime demo serving currently
-> falls back to the historical checklist JSON
-> `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json` when no
-> authentic source-derived corpus is present. That checklist independently
-> indexes one demo standard for evidence-first demonstration. It is **not** an
-> official source PDF and must not be described as one.
+> **Judge-ready MVP scope (September 2026).** This workspace currently serves
+> the source-derived SP 7:2026 corpus from `corpus/data/corpus.eligible.chunks.jsonl`.
+> Its manifest records one resolved, recommendation-eligible standard. Verify
+> the active corpus with preflight and `GET /health` before a demo. The historical
+> checklist fallback is not the source for the judge walkthrough.
 > Authentic publications belong only in `officialBIS/` and are ingested by the
 > general-purpose `scripts\update_corpus.py` pipeline.
 
@@ -19,7 +18,7 @@
 | `scripts/update_corpus.py` | Offline general PDF → JSONL → FAISS rebuild | Corpus update time |
 | `corpus/data/documents/`, `corpus.chunks.jsonl`, `manifest.json` | Generated corpus projection | Produced only by the updater |
 | `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json` | Historical/demo serving corpus | Checked-in demo data; **not** an official PDF extraction |
-| Flask runtime | Serves generated corpus when present; otherwise the historical checklist | Runtime request time; never parses PDFs |
+| Flask runtime | Prefers eligible source-derived chunks, then the canonical source-derived corpus, then the historical checklist | Runtime request time; never parses PDFs |
 
 SpecCipher never downloads source documents, never fabricates PDFs, and never
 treats mentioned document numbers inside a catalog PDF as independently indexed
@@ -88,16 +87,23 @@ Use Python 3.11+ and a project-local virtual environment, then install
 `requirements.txt`. Obtain/cache the exact `BAAI/bge-m3` model before offline
 operation; normal serving does not download models.
 
-Without authentic source-derived chunks, demo serving uses the historical
-checklist and a matching rebuilt index:
+From the repository root, validate that the persisted retrieval bundle matches
+the configured source-derived corpus, then launch Flask:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\build_retrieval_index.py --corpus corpus\data\IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json --output retrieval-index --device cpu --allow-cpu-fallback
 .\.venv\Scripts\python.exe scripts\preflight.py
 .\.venv\Scripts\python.exe backend\app.py
 ```
 
-When authentic officialBIS PDFs are available:
+The preflight command validates corpus identity, chunk mapping, vector count,
+and embedding dimensions without loading the embedding model. Flask loads
+`BAAI/bge-m3` from the local cache (or the configured model source) at startup.
+For disconnected startup, set `SPEC_CIPHER_HF_OFFLINE=1` after confirming the
+model is cached. If the generated source-derived corpus or its matching index
+is missing, use the documented corpus updater with the authentic PDFs in
+`officialBIS/`; do not silently substitute the historical checklist for this demo.
+
+When authentic officialBIS PDFs need to be ingested or refreshed:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\update_corpus.py
@@ -128,27 +134,31 @@ Legacy aliases `QWEN_OLLAMA_HOST`, `QWEN_MODEL_NAME`, `QWEN_TIMEOUT_SECONDS`,
 
 ### Current capability and boundary
 
-The historical checklist independently indexes one demo standard and mentions
-other codes only as related source text. Those mentions are not independently
-indexed. `officialBIS/` may contain catalog/list PDFs that are correctly
-rejected until authentic single-document publications are supplied by the user.
+The current manifest marks SP 7:2026 as the single recommendation-eligible
+document (1,177 eligible chunks). Other source files remain unresolved or are
+catalog/list material; mentions of other codes do not make them independently
+eligible recommendations. Unknown source metadata remains unknown.
 
 ### Judge demo procedure
 
-1. Confirm serving corpus origin via `GET /health` (`historical_demo_checklist`
-   unless authentic source ingestion succeeded).
-2. Start `backend\app.py`, verify `GET /health` is `"status":"ready"`.
-3. Submit `general-purpose centrifugal pumps for industrial water service`.
-4. Show the recommendation and evidence; state clearly whether the corpus is
-   historical demo checklist data or authentic source-derived.
-5. Repeat with `fire safety requirements for a commercial building` for honest
-   `no_match`.
-6. Do not present synthesized PDFs as official sources.
+1. Run `scripts\preflight.py` and confirm it reports a valid bundle.
+2. Start `backend\app.py`; verify `GET /health` reports `"status":"ready"`,
+    `"corpus_origin":"officialbis_derived"`, and
+    `"corpus":"corpus.eligible.chunks.jsonl"`.
+3. Submit `building design considering wind effects on occupant comfort inside and outside`.
+4. Verify the SP 7:2026 recommendation includes section 4.1.11 evidence from
+    pages 185–186 of `SP 7_2026-1-400.pdf`.
+5. Submit `general-purpose centrifugal pumps for industrial water service` and
+    verify the no-match state (no recommendations).
+6. Qwen/Ollama is optional; when unavailable the API and UI retain the finalized
+    recommendation and show a deterministic evidence-grounded explanation.
 
-The browser acceptance command is `python scripts/e2e_smoke.py`. It starts and
-stops only the backend process it owns, checks `/health`, exercises success,
-optional-Qwen fallback, and no-match states, and writes evidence under
-`.tmp/e2e_smoke/`.
+The browser acceptance command is
+`.\.venv\Scripts\python.exe scripts\e2e_smoke.py`. It starts and stops only the
+backend process it owns, checks `/health`, exercises the recommendation, the
+optional-Qwen fallback, and the no-match state, and writes evidence under
+`.tmp/e2e_smoke/`. Playwright Chromium must be installed in the active project
+environment.
 
 **Smart India Hackathon 2026 --- SIH26108**
 
