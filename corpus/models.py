@@ -132,6 +132,8 @@ class StandardMetadata:
     document_type: DocumentTypeName | None = None
     identity_status: Literal["resolved", "unresolved"] | None = None
     recommendation_eligible: bool | None = None
+    identity_confidence: float | None = None
+    identity_source: str | None = None
 
 
 @dataclass(frozen=True)

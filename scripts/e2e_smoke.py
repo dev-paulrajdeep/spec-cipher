@@ -22,8 +22,8 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_QUERY = "building design considering wind effects on occupant comfort inside and outside"
-DEFAULT_NO_RESULT_QUERY = "general-purpose centrifugal pumps for industrial water service"
+DEFAULT_QUERY = "general-purpose centrifugal pumps for industrial water service"
+DEFAULT_NO_RESULT_QUERY = "fire safety requirements for a commercial building"
 DEFAULT_MODEL = "qwen3-4b-thinking:latest"
 DEFAULT_PORT = 5000
 

@@ -40,7 +40,11 @@ def resolve_knowledge_base_paths() -> tuple[Path, ...]:
                         continue
                     relative = row.get("document_path")
                     if isinstance(relative, str) and relative.strip():
-                        candidate = CORPUS_DATA_DIR / relative
+                        candidate = (CORPUS_DATA_DIR / relative).resolve()
+                        try:
+                            candidate.relative_to(CORPUS_DATA_DIR.resolve())
+                        except ValueError:
+                            continue
                         if candidate.is_file():
                             paths.append(candidate)
                 if paths:

@@ -86,6 +86,33 @@ def test_encoder_cpu_fallback_is_automatic(monkeypatch: pytest.MonkeyPatch) -> N
     assert FakeSentenceTransformer.instances[-1].device == "cpu"
 
 
+def test_auto_device_falls_back_when_cuda_probe_is_unusable(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeSentenceTransformer.instances.clear()
+    FakeSentenceTransformer.fail_on_cuda_init = False
+    FakeSentenceTransformer.fail_on_cuda_encode = False
+
+    torch = ModuleType("torch")
+    def fake_is_available():
+        return True
+
+    def fake_device_count():
+        return 1
+
+    torch.cuda = SimpleNamespace(is_available=fake_is_available, device_count=fake_device_count)
+    torch.float16 = object()
+    torch.zeros = lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("simulated CUDA probe failure"))
+    sentence_transformers = ModuleType("sentence_transformers")
+    sentence_transformers.SentenceTransformer = FakeSentenceTransformer
+    monkeypatch.setitem(__import__("sys").modules, "torch", torch)
+    monkeypatch.setitem(__import__("sys").modules, "sentence_transformers", sentence_transformers)
+
+    encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="auto", allow_cpu_fallback=True)
+    vector = encoder.encode_text("query")
+
+    assert vector.shape == (3,)
+    assert FakeSentenceTransformer.instances[-1].device == "cpu"
+
+
 def test_explicit_cuda_without_fallback_fails_clearly(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_runtime(monkeypatch, cuda_available=False)
     encoder = SentenceTransformerEncoder("BAAI/bge-m3", device="cuda", allow_cpu_fallback=False)

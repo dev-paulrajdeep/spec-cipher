@@ -119,6 +119,23 @@ class SentenceTransformerEncoder:
             values = np.ascontiguousarray(values / norms, dtype=np.float32)
         return values
 
+    def _cuda_is_usable(self, torch) -> bool:
+        """Return True only if CUDA is genuinely usable, not merely present."""
+        try:
+            cuda_module = getattr(torch, "cuda", None)
+            if cuda_module is None or not callable(getattr(cuda_module, "is_available", None)):
+                return False
+            if not cuda_module.is_available():
+                return False
+            if getattr(cuda_module, "device_count", lambda: 0)() <= 0:
+                return False
+            probe = torch.zeros(1, device="cuda")
+            del probe
+            return True
+        except Exception:
+            logger.warning("CUDA probe failed; using CPU fallback", exc_info=True)
+            return False
+
     def _load_model(self):
         with self._model_lock:
             if self._model is not None:
@@ -135,7 +152,7 @@ class SentenceTransformerEncoder:
             preferred_device = "cpu"
             if self._device != "cpu":
                 try:
-                    if torch.cuda.is_available():
+                    if self._cuda_is_usable(torch):
                         preferred_device = "cuda"
                 except Exception:
                     logger.warning("CUDA availability check failed; using CPU", exc_info=True)

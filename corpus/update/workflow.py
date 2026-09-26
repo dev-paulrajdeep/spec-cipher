@@ -29,6 +29,9 @@ from corpus.relationships import RelationshipExtractor
 from corpus.serialization import write_chunks_jsonl, write_document_json
 from corpus.update.identity import resolve_document_identity
 from retrieval import RetrievalConfig, RetrievalPipeline
+from retrieval.corpus_loader import CorpusChunkLoader
+from retrieval.indexing import FaissIndex, IndexPersistence
+from retrieval.indexing.persistence import corpus_fingerprint
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,13 @@ class DocumentFailure:
 
 
 @dataclass(frozen=True)
+class DuplicateSource:
+    source_path: str
+    duplicate_of: str
+    document_fingerprint: str
+
+
+@dataclass(frozen=True)
 class ProcessedDocument:
     document_id: str
     standard_number: str | None
@@ -61,6 +71,8 @@ class ProcessedDocument:
     chunk_count: int
     page_count: int
     identity_status: str
+    identity_confidence: float
+    identity_source: str
     document_type: str
     recommendation_eligible: bool
     document_path: Path
@@ -87,6 +99,7 @@ class CorpusUpdateSummary:
     index_rebuilt: bool
     check_only: bool
     failures: tuple[DocumentFailure, ...] = ()
+    duplicate_sources: tuple[DuplicateSource, ...] = ()
     processed: tuple[ProcessedDocument, ...] = ()
     would_change: bool = False
     timings_ms: dict[str, float] | None = None
@@ -98,6 +111,11 @@ class CorpusUpdateSummary:
         print(f"  Processed: {self.successfully_processed}")
         print(f"  Rejected: {self.rejected_documents}")
         print(f"  Duplicates: {self.duplicates_skipped}")
+        for duplicate in self.duplicate_sources:
+            print(
+                f"       DUPLICATE {duplicate.source_path} = {duplicate.duplicate_of} "
+                f"(sha256 {duplicate.document_fingerprint[:12]})"
+            )
         print(f"  Unresolved identity: {self.unresolved_identity}")
         print(f"  Catalog/list: {self.documents_catalog_list}")
         print(f"  Extraction failures: {self.extraction_failures}")
@@ -195,6 +213,9 @@ def update_corpus_from_source(
     failures: list[DocumentFailure] = []
     processed: list[ProcessedDocument] = []
     fingerprints_seen: dict[str, str] = {}
+    duplicate_sources: list[DuplicateSource] = []
+    source_fingerprints: dict[str, str | None] = {}
+    source_dispositions: dict[str, str] = {}
     duplicates_skipped = 0
     unresolved_identity = 0
     rejected_documents = 0
@@ -204,6 +225,8 @@ def update_corpus_from_source(
     extract_started = perf_counter()
     for pdf_path in pdfs:
         rel = relative_source_path(pdf_path, source)
+        source_fingerprints[rel] = None
+        source_dispositions[rel] = "processing"
         try:
             item = _process_one_pdf(
                 pdf_path=pdf_path,
@@ -211,18 +234,26 @@ def update_corpus_from_source(
                 builder=builder,
                 asset_root=data_dir / "_assets",
                 fingerprints_seen=fingerprints_seen,
+                source_fingerprints=source_fingerprints,
             )
             processed.append(item)
+            source_dispositions[rel] = "processed"
             if item.identity_status != "resolved":
                 unresolved_identity += 1
         except _SkipDuplicate as skip:
             duplicates_skipped += 1
+            duplicate_sources.append(
+                DuplicateSource(rel, skip.original_path, skip.fingerprint)
+            )
+            source_fingerprints[rel] = skip.fingerprint
+            source_dispositions[rel] = "duplicate"
             logger.info(
                 "Skipping duplicate PDF fingerprint=%s path=%s",
                 skip.fingerprint[:12],
                 rel,
             )
         except _DocumentProcessingError as exc:
+            source_dispositions[rel] = f"failed:{exc.error_class}"
             if exc.error_class in {"unresolved_identity", "ambiguous_identity", "identity_conflict"}:
                 unresolved_identity += 1
                 rejected_documents += 1
@@ -246,15 +277,61 @@ def update_corpus_from_source(
     existing_manifest = _read_manifest(manifest_path)
     planned_docs = _manifest_documents(processed)
     planned_fingerprint = _manifest_fingerprint(planned_docs)
+    source_inventory = [
+        {
+            "source_path": relative_path,
+            "content_fingerprint": source_fingerprints[relative_path],
+            "disposition": source_dispositions[relative_path],
+        }
+        for relative_path in sorted(source_dispositions)
+    ]
+    planned_chunks = tuple(
+        chunk
+        for item in processed
+        for chunk in item.document.chunks
+    )
+    planned_chunks = tuple(
+        sorted(
+            planned_chunks,
+            key=lambda chunk: (
+                0 if chunk.recommendation_eligible else 1,
+                chunk.standard_number or "",
+                chunk.document_id or "",
+                chunk.chunk_id,
+                chunk.source_file,
+            ),
+        )
+    )
+    planned_eligible_chunks = tuple(
+        chunk for chunk in planned_chunks if chunk.recommendation_eligible
+    )
+    configured = RetrievalConfig(
+        embedding_device=(os.getenv("SPEC_CIPHER_EMBEDDING_DEVICE", "auto")).strip().lower(),
+        allow_cpu_fallback=os.getenv("SPEC_CIPHER_ALLOW_CPU_FALLBACK", "1").strip().lower()
+        in {"1", "true", "yes", "on"},
+    )
     corpus_changed = (
         force
         or planned_fingerprint != existing_manifest.get("corpus_fingerprint")
+        or existing_manifest.get("schema_version") != SCHEMA_VERSION
+        or existing_manifest.get("ingestion_version") != INGESTION_VERSION
+        or existing_manifest.get("chunking_version") != CHUNKING_VERSION
+        or existing_manifest.get("source_inventory") != source_inventory
+        or existing_manifest.get("chunks_fingerprint") != _chunks_fingerprint(planned_chunks)
         or not chunks_path.is_file()
         or not eligible_chunks_path.is_file()
         or not manifest_path.is_file()
+        or not _chunk_artifact_matches(chunks_path, planned_chunks)
+        or not _chunk_artifact_matches(eligible_chunks_path, planned_eligible_chunks)
+        or any(
+            not (data_dir / row["document_path"]).is_file()
+            for row in planned_docs
+        )
     )
-    index_missing = rebuild_index and not (index_path / "metadata.json").is_file()
-    would_change = corpus_changed or index_missing
+    index_stale = rebuild_index and not _index_bundle_matches(
+        index_path, planned_eligible_chunks, configured
+    )
+    would_change = corpus_changed or index_stale
 
     catalog_list_count = sum(
         1 for item in processed if item.document_type in {"catalog", "list", "index"}
@@ -284,6 +361,7 @@ def update_corpus_from_source(
             index_rebuilt=False,
             check_only=True,
             failures=tuple(failures),
+            duplicate_sources=tuple(duplicate_sources),
             processed=tuple(processed),
             would_change=would_change,
             timings_ms=timings,
@@ -356,6 +434,7 @@ def update_corpus_from_source(
         "chunking_version": CHUNKING_VERSION,
         "source_dir": source_identity,
         "source_policy": "user_supplied_pdfs_only",
+        "source_inventory": source_inventory,
         "documents": _manifest_documents(written),
         "document_count": len(written),
         "document_count_eligible": len(eligible_written),
@@ -388,6 +467,14 @@ def update_corpus_from_source(
             }
             for item in failures
         ],
+        "duplicate_sources": [
+            {
+                "source_path": item.source_path,
+                "duplicate_of": item.duplicate_of,
+                "document_fingerprint": item.document_fingerprint,
+            }
+            for item in duplicate_sources
+        ],
         "historical_checklist_untouched": True,
     }
 
@@ -395,32 +482,53 @@ def update_corpus_from_source(
     vectors_generated = 0
     embedding_meta: dict[str, Any] = {}
     if rebuild_index:
-        embed_started = perf_counter()
-        device = (embedding_device or os.getenv("SPEC_CIPHER_EMBEDDING_DEVICE", "auto")).strip().lower()
-        if allow_cpu_fallback is None:
-            cpu_fallback = os.getenv("SPEC_CIPHER_ALLOW_CPU_FALLBACK", "1").strip().lower() in {
-                "1",
-                "true",
-                "yes",
-                "on",
-            }
+        if not eligible_chunks_sorted:
+            _clear_index_bundle(index_path)
+            manifest["index_status"] = "not_built_no_eligible_chunks"
         else:
+            embed_started = perf_counter()
+            device = (embedding_device or os.getenv("SPEC_CIPHER_EMBEDDING_DEVICE", "auto")).strip().lower()
             cpu_fallback = allow_cpu_fallback
-        config = RetrievalConfig(embedding_device=device, allow_cpu_fallback=cpu_fallback)
-        RetrievalPipeline(config).build_and_persist(eligible_chunks_path, index_path)
-        vectors_generated = len(eligible_chunks_sorted)
-        index_rebuilt = True
-        timings["embedding_faiss"] = (perf_counter() - embed_started) * 1000
-        index_meta = _read_manifest(index_path / "metadata.json")
-        embedding_meta = {
-            "embedding_model": index_meta.get("embedding_model"),
-            "embedding_dimension": index_meta.get("embedding_dimension"),
-            "index_fingerprint": index_meta.get("corpus_fingerprint"),
-            "indexed_chunk_count": index_meta.get("chunk_count"),
-        }
-        if vectors_generated != index_meta.get("chunk_count"):
-            raise RuntimeError("FAISS vector count does not match eligible chunk count.")
-        logger.info("Rebuilt retrieval index duration_ms=%.2f", timings["embedding_faiss"])
+            if cpu_fallback is None:
+                cpu_fallback = os.getenv("SPEC_CIPHER_ALLOW_CPU_FALLBACK", "1").strip().lower() in {
+                    "1",
+                    "true",
+                    "yes",
+                    "on",
+                }
+            config = RetrievalConfig(
+                embedding_model=configured.embedding_model,
+                embedding_model_version=configured.embedding_model_version,
+                embedding_dimension=configured.embedding_dimension,
+                embedding_device=device,
+                allow_cpu_fallback=cpu_fallback,
+                normalize_embeddings=configured.normalize_embeddings,
+                index_type=configured.index_type,
+            )
+            for chunk in eligible_chunks_sorted:
+                if not all((chunk.source_path, chunk.document_fingerprint, chunk.document_id)):
+                    raise RuntimeError(
+                        f"Recommendation-eligible chunk {chunk.chunk_id} lacks source-PDF provenance."
+                    )
+                if chunk.identity_status != "resolved" or chunk.recommendation_eligible is not True:
+                    raise RuntimeError(
+                        f"Recommendation-eligible chunk {chunk.chunk_id} has inconsistent identity state."
+                    )
+            RetrievalPipeline(config).build_and_persist(eligible_chunks_path, index_path)
+            vectors_generated = len(eligible_chunks_sorted)
+            index_rebuilt = True
+            timings["embedding_faiss"] = (perf_counter() - embed_started) * 1000
+            index_meta = _read_manifest(index_path / "metadata.json")
+            embedding_meta = {
+                "embedding_model": index_meta.get("embedding_model"),
+                "embedding_dimension": index_meta.get("embedding_dimension"),
+                "index_fingerprint": index_meta.get("corpus_fingerprint"),
+                "indexed_chunk_count": index_meta.get("chunk_count"),
+                "index_status": "ready",
+            }
+            if vectors_generated != index_meta.get("chunk_count"):
+                raise RuntimeError("FAISS vector count does not match eligible chunk count.")
+            logger.info("Rebuilt retrieval index duration_ms=%.2f", timings["embedding_faiss"])
 
     manifest.update(embedding_meta)
     manifest_path.write_text(
@@ -450,6 +558,7 @@ def update_corpus_from_source(
         index_rebuilt=index_rebuilt,
         check_only=False,
         failures=tuple(failures),
+        duplicate_sources=tuple(duplicate_sources),
         processed=tuple(written),
         would_change=True,
         timings_ms=timings,
@@ -472,9 +581,10 @@ class _DocumentProcessingError(Exception):
 
 
 class _SkipDuplicate(Exception):
-    def __init__(self, fingerprint: str) -> None:
+    def __init__(self, fingerprint: str, original_path: str) -> None:
         super().__init__(fingerprint)
         self.fingerprint = fingerprint
+        self.original_path = original_path
 
 
 def _process_one_pdf(
@@ -484,13 +594,14 @@ def _process_one_pdf(
     builder: CorpusBuilder,
     asset_root: Path,
     fingerprints_seen: dict[str, str],
+    source_fingerprints: dict[str, str | None],
 ) -> ProcessedDocument:
     try:
         size = pdf_path.stat().st_size
     except OSError as exc:
         raise _DocumentProcessingError(
             "io_error",
-            f"Could not stat PDF: {exc}",
+            "Could not inspect the PDF file.",
             remediation="Verify file permissions and that the path is readable.",
         ) from exc
     if size <= 0:
@@ -510,13 +621,14 @@ def _process_one_pdf(
     except OSError as exc:
         raise _DocumentProcessingError(
             "io_error",
-            f"Could not read PDF: {exc}",
+            "Could not read the PDF file.",
             remediation="Verify file permissions and that the path is readable.",
         ) from exc
 
     fingerprint = document_fingerprint(data)
+    source_fingerprints[relative_path] = fingerprint
     if fingerprint in fingerprints_seen:
-        raise _SkipDuplicate(fingerprint)
+        raise _SkipDuplicate(fingerprint, fingerprints_seen[fingerprint])
     fingerprints_seen[fingerprint] = relative_path
 
     leading_text, page_count, pdf_title, image_only = _inspect_pdf(data)
@@ -566,7 +678,7 @@ def _process_one_pdf(
     except Exception as exc:
         raise _DocumentProcessingError(
             exc.__class__.__name__,
-            f"Extraction/build failed: {exc}",
+            "PDF extraction or corpus construction failed.",
             remediation="Inspect the PDF for encryption, corruption, or unsupported structure.",
         ) from exc
 
@@ -582,6 +694,8 @@ def _process_one_pdf(
         document_type=identity.document_type,
         identity_status=identity.status,
         recommendation_eligible=identity.recommendation_eligible,
+        identity_confidence=identity.confidence,
+        identity_source=identity.source,
     )
     # Re-chunk with authoritative document identity so IDs never depend on
     # synthetic/filename-invented standard numbers.
@@ -634,6 +748,28 @@ def _process_one_pdf(
         chunks=chunks,
         pages=tuple(pages),
         relationships=relationships,
+        raw_asset_directory=_relative_asset_path(asset_dir, asset_root),
+    )
+    document = replace(
+        document,
+        pages=tuple(
+            replace(
+                page,
+                asset_path=(
+                    _relative_asset_path(Path(page.asset_path), asset_root)
+                    if page.asset_path
+                    else None
+                ),
+                figures=tuple(
+                    replace(
+                        figure,
+                        asset_path=_relative_asset_path(Path(figure.asset_path), asset_root),
+                    )
+                    for figure in page.figures
+                ),
+            )
+            for page in document.pages
+        ),
     )
     if not document.chunks:
         raise _DocumentProcessingError(
@@ -652,6 +788,8 @@ def _process_one_pdf(
         chunk_count=len(document.chunks),
         page_count=document.metadata.page_count,
         identity_status=identity.status,
+        identity_confidence=identity.confidence,
+        identity_source=identity.source,
         document_type=identity.document_type,
         recommendation_eligible=identity.recommendation_eligible,
         document_path=Path(""),
@@ -722,41 +860,119 @@ def _dedupe_documents(
     processed: list[ProcessedDocument],
     failures: list[DocumentFailure],
 ) -> list[ProcessedDocument]:
-    chosen: dict[str, ProcessedDocument] = {}
-    for item in sorted(
-        processed,
-        key=lambda row: (
-            0 if row.recommendation_eligible else 1,
-            row.standard_number or "",
-            row.document_id,
-            row.source_path,
-        ),
-    ):
+    groups: dict[str, list[ProcessedDocument]] = {}
+    for item in processed:
         key = item.standard_number or f"fingerprint:{item.document_fingerprint}"
-        existing = chosen.get(key)
-        if existing is None:
-            chosen[key] = item
+        groups.setdefault(key, []).append(item)
+
+    retained: list[ProcessedDocument] = []
+    for group in groups.values():
+        fingerprints = {item.document_fingerprint for item in group}
+        if len(fingerprints) <= 1:
+            retained.extend(group[:1])
             continue
-        if existing.document_fingerprint == item.document_fingerprint:
+        if not group[0].standard_number:
+            retained.extend(group)
             continue
-        if item.standard_number:
+        number = group[0].standard_number
+        for item in group:
             failures.append(
                 DocumentFailure(
                     filename=item.source_filename,
                     source_path=item.source_path,
                     error_class="document_number_conflict",
                     message=(
-                        f"Document number {item.standard_number} already resolved from "
-                        f"{existing.source_path} with a different document fingerprint. "
-                        "Keep one authoritative PDF per document number."
+                        f"Document number {number} is claimed by multiple PDFs with different "
+                        "content fingerprints. This source was retained as unresolved and "
+                        "excluded from recommendations."
                     ),
-                    remediation="Remove or rename the conflicting PDF; do not silently merge distinct sources.",
+                    remediation="Resolve the source identity conflict before recommending this document.",
                 )
             )
-            continue
-        # Distinct unresolved documents keyed by fingerprint remain independent.
-        chosen[f"fingerprint:{item.document_fingerprint}"] = item
-    return list(chosen.values())
+            retained.append(_as_unresolved_conflict(item))
+    return sorted(
+        retained,
+        key=lambda row: (
+            0 if row.recommendation_eligible else 1,
+            row.standard_number or "",
+            row.document_id,
+            row.source_path,
+        ),
+    )
+
+
+def _as_unresolved_conflict(item: ProcessedDocument) -> ProcessedDocument:
+    """Retain disputed source content without assigning it an ambiguous owner."""
+    document_id = f"doc_{item.document_fingerprint[:16]}"
+    chunks = tuple(
+        replace(
+            chunk,
+            chunk_id="chunk_" + hashlib.sha256(
+                f"{document_id}|{chunk.chunk_id}".encode("utf-8")
+            ).hexdigest()[:20],
+            standard_number=None,
+            document_id=document_id,
+            document_type="unknown",
+            recommendation_eligible=False,
+            identity_status="unresolved",
+        )
+        for chunk in item.document.chunks
+    )
+    chunk_ids_by_page = {
+        page.page_number: tuple(
+            chunk.chunk_id for chunk in chunks
+            if chunk.page_start <= page.page_number <= chunk.page_end
+        )
+        for page in item.document.pages
+    }
+    pages = tuple(
+        replace(
+            page,
+            standard_id=None,
+            provenance=(
+                replace(
+                    page.provenance,
+                    standard_id=None,
+                    chunk_ids=chunk_ids_by_page[page.page_number],
+                )
+                if page.provenance is not None
+                else None
+            ),
+        )
+        for page in item.document.pages
+    )
+    relationships = tuple(
+        replace(relation, source_standard_number=None)
+        for relation in item.document.relationships
+    )
+    document = replace(
+        item.document,
+        metadata=replace(
+            item.document.metadata,
+            standard_number=None,
+            document_id=document_id,
+            document_type="unknown",
+            identity_status="unresolved",
+            recommendation_eligible=False,
+            identity_confidence=0.0,
+            identity_source="conflict",
+        ),
+        chunks=chunks,
+        pages=pages,
+        relationships=relationships,
+    )
+    return replace(
+        item,
+        document_id=document_id,
+        standard_number=None,
+        identity_status="unresolved",
+        identity_confidence=0.0,
+        identity_source="conflict",
+        document_type="unknown",
+        recommendation_eligible=False,
+        chunk_count=len(chunks),
+        document=document,
+    )
 
 
 def _manifest_documents(
@@ -773,6 +989,8 @@ def _manifest_documents(
             "chunk_count": item.chunk_count,
             "page_count": item.page_count,
             "identity_status": item.identity_status,
+            "identity_confidence": item.identity_confidence,
+            "identity_source": item.identity_source,
             "document_type": item.document_type,
             "recommendation_eligible": item.recommendation_eligible,
             "document_path": f"documents/{safe_document_stem(item.document_id)}.json",
@@ -823,12 +1041,77 @@ def _chunks_fingerprint(chunks: tuple[Any, ...]) -> str:
     return digest.hexdigest()
 
 
+def _chunk_artifact_matches(path: Path, expected: tuple[DocumentChunk, ...]) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        loaded = CorpusChunkLoader().load(path)
+    except (OSError, ValueError):
+        return False
+    return _chunks_fingerprint(loaded.chunks) == _chunks_fingerprint(expected)
+
+
+def _index_bundle_matches(
+    directory: Path,
+    chunks: tuple[DocumentChunk, ...],
+    config: RetrievalConfig,
+    *,
+    embedding_backend: str = "sentence-transformers",
+) -> bool:
+    """Check the persisted bundle without loading the embedding model."""
+    required = (
+        IndexPersistence.INDEX_FILE,
+        IndexPersistence.MAPPING_FILE,
+        IndexPersistence.CHUNKS_FILE,
+        IndexPersistence.METADATA_FILE,
+    )
+    if not all((directory / name).is_file() for name in required):
+        return False
+    try:
+        metadata_payload = json.loads(
+            (directory / IndexPersistence.METADATA_FILE).read_text(encoding="utf-8")
+        )
+        metadata = IndexPersistence._metadata_from_dict(metadata_payload)
+        mapping = json.loads((directory / IndexPersistence.MAPPING_FILE).read_text(encoding="utf-8"))
+        if not isinstance(mapping, list) or not all(isinstance(item, str) for item in mapping):
+            return False
+        rows = json.loads((directory / IndexPersistence.CHUNKS_FILE).read_text(encoding="utf-8"))
+        persisted_chunks = IndexPersistence._chunks_from_rows(rows)
+        native = FaissIndex._import_faiss().read_index(str(directory / IndexPersistence.INDEX_FILE))
+        index = FaissIndex.from_native(native, mapping)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError, RuntimeError):
+        return False
+    expected_ids = tuple(chunk.chunk_id for chunk in chunks)
+    return (
+        metadata.index_type == config.index_type
+        and metadata.embedding_backend == embedding_backend
+        and metadata.embedding_model == config.embedding_model
+        and metadata.embedding_model_version == config.embedding_model_version
+        and metadata.normalize_embeddings == config.normalize_embeddings
+        and metadata.corpus_schema_version in {None, SCHEMA_VERSION}
+        and (config.embedding_dimension is None or metadata.embedding_dimension == config.embedding_dimension)
+        and metadata.chunk_count == len(chunks)
+        and index.count == len(chunks)
+        and index.dimension == metadata.embedding_dimension
+        and tuple(mapping) == expected_ids
+        and tuple(chunk.chunk_id for chunk in persisted_chunks) == expected_ids
+        and corpus_fingerprint(persisted_chunks) == corpus_fingerprint(chunks)
+        and metadata.corpus_fingerprint == corpus_fingerprint(chunks)
+    )
+
+
 def _source_dir_identity(source: Path, project_root: Path) -> str:
     try:
         return source.resolve().relative_to(project_root.resolve()).as_posix()
     except ValueError:
         # Outside the project: keep only the directory name, never a developer home path.
         return source.name
+
+
+def _relative_asset_path(path: Path, asset_root: Path) -> str:
+    """Persist asset paths relative to corpus data, never to a workstation."""
+    relative = path.resolve().relative_to(asset_root.resolve())
+    return (Path(asset_root.name) / relative).as_posix()
 
 
 def _read_manifest(path: Path) -> dict[str, Any]:
@@ -854,7 +1137,13 @@ def _clear_generated_corpus_artifacts(
     for path in (chunks_path, eligible_chunks_path, manifest_path):
         if path.is_file():
             path.unlink()
-    if index_dir is not None and index_dir.exists():
+    if index_dir is not None:
+        _clear_index_bundle(index_dir)
+
+
+def _clear_index_bundle(index_dir: Path) -> None:
+    """Remove only known generated FAISS bundle files."""
+    if index_dir.exists():
         for name in ("index.faiss", "chunk_ids.json", "chunks.json", "metadata.json"):
             candidate = index_dir / name
             if candidate.is_file():

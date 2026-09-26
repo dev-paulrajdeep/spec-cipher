@@ -20,6 +20,11 @@
 | `corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json` | Historical/demo serving corpus | Checked-in demo data; **not** an official PDF extraction |
 | Flask runtime | Prefers eligible source-derived chunks, then the canonical source-derived corpus, then the historical checklist | Runtime request time; never parses PDFs |
 
+The ingestion implementation is document-family agnostic. Adding an IS, ISO,
+IEC, ASTM, EN, manual, or procurement specification PDF uses the same pipeline;
+document numbers and titles come from conservative source evidence, not
+standard-specific Python branches.
+
 SpecCipher never downloads source documents, never fabricates PDFs, and never
 treats mentioned document numbers inside a catalog PDF as independently indexed
 documents.
@@ -65,15 +70,22 @@ What the updater does:
 - extracts text with the existing PyMuPDF corpus pipeline
 - resolves document identity conservatively (filename / title / header)
 - rejects catalog/list PDFs that only mention many document numbers
-- preserves unresolved ingestible documents without inventing numbers
+- preserves unresolved ingestible documents without inventing numbers and
+    records identity confidence/source
+- records page extraction status; image-only pages are reported as requiring
+    OCR, and no OCR is claimed unless an OCR provider actually ran
+- records every discovered source path, content fingerprint, and disposition
+    (processed, duplicate, or failed) in the manifest
 - writes canonical documents under `corpus/data/documents/`
 - writes retrieval chunks to `corpus/data/corpus.chunks.jsonl`
 - rebuilds FAISS under `retrieval-index/`
 - leaves the historical demo checklist JSON untouched
 
-If no PDF produces a usable corpus, the updater reports failures, clears
-source-derived generated artifacts, and does **not** manufacture a substitute
-PDF or corpus document. Runtime can still use the historical demo checklist.
+If no PDF produces a usable corpus, the updater reports failures and does
+**not** manufacture a substitute PDF or corpus document. A corpus with no
+recommendation-eligible chunks does not produce a zero-vector serving bundle;
+the manifest records `not_built_no_eligible_chunks`, and serving preflight
+rejects empty indexes as not ready.
 
 Dry-run:
 
@@ -95,8 +107,9 @@ the configured source-derived corpus, then launch Flask:
 .\.venv\Scripts\python.exe backend\app.py
 ```
 
-The preflight command validates corpus identity, chunk mapping, vector count,
-and embedding dimensions without loading the embedding model. Flask loads
+The preflight command validates corpus identity, unique chunk IDs, chunk mapping,
+vector count, normalized vectors, embedding identity, and embedding dimensions
+without loading the embedding model. Flask loads
 `BAAI/bge-m3` from the local cache (or the configured model source) at startup.
 For disconnected startup, set `SPEC_CIPHER_HF_OFFLINE=1` after confirming the
 model is cached. If the generated source-derived corpus or its matching index
@@ -138,6 +151,9 @@ The current manifest marks SP 7:2026 as the single recommendation-eligible
 document (1,177 eligible chunks). Other source files remain unresolved or are
 catalog/list material; mentions of other codes do not make them independently
 eligible recommendations. Unknown source metadata remains unknown.
+Exact duplicate PDFs are fingerprinted and reported; distinct PDFs claiming
+one identifier are preserved separately as unresolved/ineligible until the
+source identity conflict is resolved.
 
 ### Judge demo procedure
 

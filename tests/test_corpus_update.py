@@ -15,9 +15,12 @@ import pytest
 from corpus.processing.normalizer import normalize_document_number
 from corpus.update.identity import identity_from_filename, resolve_document_identity
 from corpus.update.workflow import (
+    _index_bundle_matches,
+    discover_pdfs,
     document_fingerprint,
     update_corpus_from_source,
 )
+from backend.preflight import PreflightError, validate_bundle
 from retrieval.corpus_loader import CorpusChunkLoader
 from retrieval.indexing.persistence import IndexPersistence
 from retrieval.pipeline import RetrievalPipeline
@@ -109,6 +112,24 @@ def test_temp_filename_never_becomes_standard_number() -> None:
     assert outcome.recommendation_eligible is False
     assert outcome.document_type in {"catalog", "list"}
     assert outcome.document_id.startswith("doc_")
+
+
+def test_pdf_discovery_is_recursive_pdf_only_and_deterministic(tmp_path: Path) -> None:
+    source = tmp_path / "source with spaces"
+    first = source / "nested" / "Technical Δ Document.pdf"
+    second = source / "A-100.pdf"
+    first.parent.mkdir(parents=True)
+    first.write_bytes(b"fixture pdf bytes")
+    second.write_bytes(b"another fixture")
+    (source / "nested" / "notes.txt").write_text("not a PDF", encoding="utf-8")
+
+    discovered = discover_pdfs(source)
+
+    assert discovered == tuple(sorted(discovered))
+    assert [path.relative_to(source).as_posix() for path in discovered] == [
+        "A-100.pdf",
+        "nested/Technical Δ Document.pdf",
+    ]
 
 
 def test_identity_resolves_generic_owner_and_rejects_catalog_promotion() -> None:
@@ -213,6 +234,12 @@ def test_update_corpus_one_pdf_and_provenance(tmp_path: Path) -> None:
     assert document["metadata"]["document_fingerprint"] == chunk.document_fingerprint
     assert document["metadata"]["source_path"] == "TECH-1001.pdf"
     assert document["metadata"]["recommendation_eligible"] is True
+    assert document["metadata"]["identity_confidence"] > 0
+    assert document["metadata"]["identity_source"] == "filename"
+    asset_path = Path(document["pages"][0]["asset_path"])
+    assert not asset_path.is_absolute()
+    assert (data_dir / asset_path).is_file()
+    assert document["raw_asset_directory"] == "_assets/" + chunk.document_fingerprint[:16]
 
 
 def test_catalog_with_many_references_is_reference_only(tmp_path: Path) -> None:
@@ -358,6 +385,88 @@ def test_empty_eligible_index_is_allowed(tmp_path: Path) -> None:
     assert bundle.metadata.chunk_count == 0
 
 
+def test_updater_does_not_leave_empty_ready_index(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "product-list.pdf",
+        header_lines=["List of products"],
+        body="DOC-1001 Equipment A\nDOC-1002 Equipment B\nDOC-1003 Equipment C\nDOC-1004 Equipment D",
+    )
+    root = tmp_path / "project"
+    data_dir = root / "corpus" / "data"
+    index_dir = root / "retrieval-index"
+    index_dir.mkdir(parents=True)
+    (index_dir / "metadata.json").write_text("stale", encoding="utf-8")
+
+    summary = update_corpus_from_source(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=data_dir,
+        index_dir=index_dir,
+        rebuild_index=True,
+    )
+
+    manifest = json.loads((data_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert summary.chunks_eligible == 0
+    assert summary.vectors_generated == 0
+    assert summary.index_rebuilt is False
+    assert manifest["index_status"] == "not_built_no_eligible_chunks"
+    assert not any((index_dir / name).exists() for name in (
+        "index.faiss", "chunk_ids.json", "chunks.json", "metadata.json"
+    ))
+
+
+def test_preflight_rejects_persisted_zero_vector_index(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    corpus_path = root / "empty.jsonl"
+    corpus_path.parent.mkdir(parents=True)
+    corpus_path.write_text("", encoding="utf-8")
+    index_dir = root / "retrieval-index"
+    pipeline = RetrievalPipeline(
+        RetrievalConfig(embedding_model="static-test", embedding_dimension=4),
+        encoder=StaticEncoder(),
+    )
+    pipeline.build_and_persist(corpus_path, index_dir)
+
+    with pytest.raises(PreflightError, match="no recommendation-eligible chunks"):
+        validate_bundle(index_dir, corpus_path)
+
+
+def test_index_bundle_match_check_detects_corrupt_chunk_payload(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    write_technical_pdf(
+        source / "TECH-1001.pdf",
+        header_lines=["TECH-1001", "Equipment requirements"],
+        body="1 Scope\nGeneric equipment acceptance requirements.",
+    )
+    root = tmp_path / "project"
+    data_dir = root / "corpus" / "data"
+    index_dir = root / "retrieval-index"
+    update_corpus_from_source(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=data_dir,
+        index_dir=index_dir,
+        rebuild_index=False,
+    )
+    chunks = CorpusChunkLoader().load(data_dir / "corpus.eligible.chunks.jsonl").chunks
+    pipeline = RetrievalPipeline(
+        RetrievalConfig(embedding_model="static-test", embedding_dimension=4),
+        encoder=StaticEncoder(),
+    )
+    pipeline.build_and_persist(data_dir / "corpus.eligible.chunks.jsonl", index_dir)
+    config = RetrievalConfig(
+        embedding_model="static-test",
+        embedding_model_version="test",
+        embedding_dimension=4,
+    )
+    assert _index_bundle_matches(index_dir, chunks, config, embedding_backend="custom")
+
+    (index_dir / "chunks.json").write_text("[]", encoding="utf-8")
+
+    assert not _index_bundle_matches(index_dir, chunks, config, embedding_backend="custom")
+
+
 def test_update_corpus_multiple_independent_pdfs(tmp_path: Path) -> None:
     source = tmp_path / "officialBIS"
     write_technical_pdf(
@@ -383,6 +492,15 @@ def test_update_corpus_multiple_independent_pdfs(tmp_path: Path) -> None:
     assert summary.documents_eligible == 2
     standards = {item.standard_number for item in summary.processed}
     assert standards == {"TECH-1001", "STD-A"}
+    check = update_corpus_from_source(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=root / "corpus" / "data",
+        index_dir=root / "retrieval-index",
+        rebuild_index=False,
+        check_only=True,
+    )
+    assert check.would_change is False
 
 
 def test_update_corpus_is_idempotent(tmp_path: Path) -> None:
@@ -407,6 +525,39 @@ def test_update_corpus_is_idempotent(tmp_path: Path) -> None:
     assert first.chunks_generated == second.chunks_generated
     assert chunks_first == (root / "corpus" / "data" / "corpus.chunks.jsonl").read_text(encoding="utf-8")
     assert manifest_first == (root / "corpus" / "data" / "manifest.json").read_text(encoding="utf-8")
+
+
+def test_added_identical_source_is_detected_in_check_mode(tmp_path: Path) -> None:
+    source = tmp_path / "officialBIS"
+    pdf = source / "TECH-1001.pdf"
+    write_technical_pdf(
+        pdf,
+        header_lines=["TECH-1001", "Equipment requirements"],
+        body="1 Scope\nGeneric equipment requirements.",
+    )
+    root = tmp_path / "project"
+    kwargs = dict(
+        project_root=root,
+        source_dir=source,
+        corpus_data_dir=root / "corpus" / "data",
+        index_dir=root / "retrieval-index",
+        rebuild_index=False,
+    )
+    update_corpus_from_source(**kwargs)
+    duplicate = source / "archive" / "TECH-1001.pdf"
+    duplicate.parent.mkdir()
+    duplicate.write_bytes(pdf.read_bytes())
+
+    check = update_corpus_from_source(**kwargs, check_only=True)
+
+    assert check.duplicates_skipped == 1
+    assert check.would_change is True
+    duplicate_source = check.duplicate_sources[0]
+    assert duplicate_source.source_path != duplicate_source.duplicate_of
+    assert {duplicate_source.source_path, duplicate_source.duplicate_of} == {
+        "TECH-1001.pdf",
+        "archive/TECH-1001.pdf",
+    }
 
 
 def test_duplicate_pdf_bytes_are_skipped(tmp_path: Path) -> None:
@@ -816,8 +967,16 @@ def test_same_document_number_different_content_is_not_merged(tmp_path: Path) ->
         index_dir=root / "retrieval-index",
         rebuild_index=False,
     )
-    assert summary.successfully_processed == 1
-    assert any(item.error_class == "document_number_conflict" for item in summary.failures)
+    assert summary.successfully_processed == 2
+    assert summary.documents_eligible == 0
+    assert len({item.document_fingerprint for item in summary.processed}) == 2
+    assert {item.source_path for item in summary.processed} == {
+        "TECH-1001.pdf",
+        "archive/TECH-1001.pdf",
+    }
+    assert all(item.standard_number is None for item in summary.processed)
+    assert all(item.identity_status == "unresolved" for item in summary.processed)
+    assert sum(item.error_class == "document_number_conflict" for item in summary.failures) == 2
 
 
 def test_fixture_pdfs_never_written_into_officialbis(tmp_path: Path) -> None:

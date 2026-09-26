@@ -77,13 +77,15 @@ def validate_bundle(
         raise PreflightError(
             f"Corpus/index vector count mismatch: corpus={len(loaded.chunks)} vectors={vector_count} metadata={index_chunk_count}"
         )
+    if vector_count == 0:
+        raise PreflightError(
+            "The retrieval index contains no recommendation-eligible chunks; "
+            "the service cannot be marked ready. Add an identity-resolved source PDF."
+        )
     if vector_dimension != embedding_dimension:
         raise PreflightError(
             f"Persisted FAISS dimension mismatch: vectors={vector_dimension} metadata={embedding_dimension}"
         )
-    # Empty eligible indexes are valid when officialBIS contains only
-    # reference-only documents (catalogs/lists/unresolved identity).
-
     if check_ollama:
         parsed = urlsplit(ollama_host)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
