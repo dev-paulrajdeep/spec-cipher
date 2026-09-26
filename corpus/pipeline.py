@@ -86,7 +86,15 @@ class CorpusBuilder:
         pages = self.cleaner.clean_document(ocr_result.document)
         if ocr_result.ocr_page_numbers:
             pages = tuple(
-                replace(page, ocr_applied=page.page_number in ocr_result.ocr_page_numbers)
+                replace(
+                    page,
+                    ocr_applied=page.page_number in ocr_result.ocr_page_numbers,
+                    extraction_status=(
+                        "ocr_applied"
+                        if page.page_number in ocr_result.ocr_page_numbers
+                        else page.extraction_status
+                    ),
+                )
                 for page in pages
             )
         metadata = self.metadata_extractor.extract(pages, ocr_result.document.source_file)

@@ -33,6 +33,13 @@ class TextCleaner:
                     page_number=source_page.page_number,
                     raw_text=source_page.text,
                     cleaned_text=cleaned,
+                    extraction_status=(
+                        "empty"
+                        if not source_page.text.strip()
+                        else "ocr_required"
+                        if source_page.page_number in document.sparse_page_numbers
+                        else "text_extracted"
+                    ),
                     bbox=source_page.bbox,
                     width=source_page.width,
                     height=source_page.height,

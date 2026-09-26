@@ -86,6 +86,7 @@ class CorpusPage:
     raw_text: str
     cleaned_text: str
     ocr_applied: bool = False
+    extraction_status: Literal["text_extracted", "empty", "ocr_required", "ocr_applied"] = "text_extracted"
     # The fields below are optional defaults to retain the original, small page
     # constructor contract for non-PDF sources and existing callers.
     id: str | None = None

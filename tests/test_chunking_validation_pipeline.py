@@ -83,6 +83,29 @@ def test_pipeline_processes_a_page_preserving_pdf_end_to_end(tmp_path) -> None:
     assert any(item.relationship_type == "references" for item in document.relationships)
 
 
+def test_pdf_pages_preserve_extraction_status_and_text(tmp_path) -> None:
+    source = tmp_path / "page-statuses.pdf"
+    pdf = pymupdf.open()
+    pdf.new_page()
+    sparse = pdf.new_page()
+    sparse.insert_text((72, 72), "Short")
+    extracted = pdf.new_page()
+    extracted.insert_text((72, 72), "This page contains enough extracted text for normal processing.")
+    pdf.save(source)
+    pdf.close()
+
+    document = CorpusBuilder(raw_asset_directory=tmp_path / "assets").build(source)
+
+    assert [page.extraction_status for page in document.pages] == [
+        "empty",
+        "ocr_required",
+        "text_extracted",
+    ]
+    assert document.pages[0].raw_text == ""
+    assert document.pages[1].raw_text == "Short\n"
+    assert "enough extracted text" in document.pages[2].raw_text
+
+
 def test_metadata_recovers_structured_source_identity_without_inventing_is_code() -> None:
     pages = (CorpusPage(1, "content without an identifier", "content without an identifier"),)
     metadata = MetadataExtractor().extract(pages, "SP 7_2026.pdf")
