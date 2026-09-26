@@ -38,8 +38,13 @@ def install_fake_runtime(monkeypatch: pytest.MonkeyPatch, cuda_available: bool) 
     FakeSentenceTransformer.fail_on_cuda_init = False
     FakeSentenceTransformer.fail_on_cuda_encode = False
     torch = ModuleType("torch")
-    torch.cuda = SimpleNamespace(is_available=lambda: cuda_available)
+    torch.cuda = SimpleNamespace(
+        is_available=lambda: cuda_available,
+        device_count=lambda: 1 if cuda_available else 0,
+        empty_cache=lambda: None,
+    )
     torch.float16 = object()
+    torch.zeros = lambda *args, **kwargs: np.zeros(args[0], dtype=np.float32)
     sentence_transformers = ModuleType("sentence_transformers")
     sentence_transformers.SentenceTransformer = FakeSentenceTransformer
     monkeypatch.setitem(__import__("sys").modules, "torch", torch)
