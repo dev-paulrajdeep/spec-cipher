@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from types import ModuleType, SimpleNamespace
 import sys
+from types import ModuleType, SimpleNamespace
 
 import numpy as np
 import pytest
-
 from corpus.models import DocumentChunk
 from retrieval.config import RetrievalConfig
-from retrieval.embeddings import EmbeddingEncoder
+from retrieval.models import RetrievalResult
 from retrieval.pipeline import RetrievalPipeline
 from retrieval.reranking import BGEReranker
-from retrieval.models import RetrievalResult
 
 
 class StaticEncoder:

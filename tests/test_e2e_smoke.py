@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
-
 import pytest
-
 from scripts.e2e_smoke import (
     DEFAULT_NO_RESULT_QUERY,
     DEFAULT_QUERY,

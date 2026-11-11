@@ -3,11 +3,18 @@ from __future__ import annotations
 import json
 
 import pymupdf
-
 from corpus import CorpusBuilder
 from corpus.chunking import ChunkingConfig, DocumentChunker
-from corpus.models import CorpusPage, DocumentChunk, Section, SectionFragment, StandardDocument, StandardMetadata, StandardRelationship
 from corpus.metadata import MetadataExtractor
+from corpus.models import (
+    CorpusPage,
+    DocumentChunk,
+    Section,
+    SectionFragment,
+    StandardDocument,
+    StandardMetadata,
+    StandardRelationship,
+)
 from corpus.validation import CorpusValidator
 
 

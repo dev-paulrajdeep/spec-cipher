@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-
+from backend.preflight import PreflightError, validate_bundle
 from corpus.processing.normalizer import normalize_document_number
 from corpus.update.identity import identity_from_filename, resolve_document_identity
 from corpus.update.workflow import (
@@ -20,12 +20,10 @@ from corpus.update.workflow import (
     document_fingerprint,
     update_corpus_from_source,
 )
-from backend.preflight import PreflightError, validate_bundle
+from retrieval.config import RetrievalConfig
 from retrieval.corpus_loader import CorpusChunkLoader
 from retrieval.indexing.persistence import IndexPersistence
 from retrieval.pipeline import RetrievalPipeline
-from retrieval.config import RetrievalConfig
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OFFICIAL_BIS = PROJECT_ROOT / "officialBIS"

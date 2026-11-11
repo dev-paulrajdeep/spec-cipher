@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pytest
-
 from corpus.models import DocumentChunk
-from retrieval.corpus_loader import CorpusChunkLoadError, CorpusChunkLoader
+from retrieval.config import RetrievalConfig
+from retrieval.corpus_loader import CorpusChunkLoader, CorpusChunkLoadError
 from retrieval.indexing import IndexCompatibilityError
 from retrieval.pipeline import RetrievalPipeline
-from retrieval.config import RetrievalConfig
 
 
 class StressEncoder:

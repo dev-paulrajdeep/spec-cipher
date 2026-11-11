@@ -1,7 +1,6 @@
-import torch
 import pytest
+import torch
 from sentence_transformers import SentenceTransformer
-
 
 if not torch.cuda.is_available():
     pytest.skip("Optional BGE-M3 GPU smoke test requires CUDA", allow_module_level=True)

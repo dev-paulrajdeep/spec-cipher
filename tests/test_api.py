@@ -6,7 +6,6 @@ from threading import RLock
 from types import SimpleNamespace
 
 import pytest
-
 from backend.qwen_reasoning import ExplanationOutcome
 from intelligence.models import (
     ApplicabilityScore,

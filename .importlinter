@@ -1,0 +1,58 @@
+[importlinter]
+root_packages =
+    speccipher
+include_external_packages = True
+
+[importlinter:contract:1]
+name = 7-Layer Architecture (No Upward Imports)
+type = layers
+layers =
+    speccipher.api | speccipher.cli
+    speccipher.services
+    speccipher.release
+    speccipher.retrieval | speccipher.decision | speccipher.ingestion | speccipher.understanding | speccipher.explanation
+    speccipher.catalog | speccipher.pdfio
+    speccipher.config
+    speccipher.domain
+
+[importlinter:contract:2]
+name = Layer 4 Core Engines Independence
+type = independence
+modules =
+    speccipher.retrieval
+    speccipher.decision
+    speccipher.ingestion
+    speccipher.understanding
+    speccipher.explanation
+
+[importlinter:contract:3]
+name = Offline/Serving Plane Boundary
+type = forbidden
+source_modules =
+    speccipher.api
+    speccipher.services
+    speccipher.retrieval
+    speccipher.decision
+    speccipher.understanding
+    speccipher.explanation
+forbidden_modules =
+    speccipher.ingestion
+
+[importlinter:contract:4]
+name = Domain Purity Contract
+type = forbidden
+source_modules =
+    speccipher.domain
+forbidden_modules =
+    speccipher.config
+    speccipher.catalog
+    speccipher.pdfio
+    speccipher.retrieval
+    speccipher.decision
+    speccipher.ingestion
+    speccipher.understanding
+    speccipher.explanation
+    speccipher.release
+    speccipher.services
+    speccipher.api
+    speccipher.cli

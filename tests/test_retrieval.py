@@ -7,14 +7,13 @@ import sys
 
 import numpy as np
 import pytest
-
 from corpus.models import DocumentChunk
 from retrieval.config import RetrievalConfig
-from retrieval.corpus_loader import CorpusChunkLoadError, CorpusChunkLoader
+from retrieval.corpus_loader import CorpusChunkLoader, CorpusChunkLoadError
 from retrieval.evaluation import EvaluationCase, evaluate, mrr_at_k, precision_at_k, recall_at_k
 from retrieval.indexing import FaissIndex, IndexCompatibilityError
 from retrieval.indexing.persistence import corpus_fingerprint
-from retrieval.models import RetrievalResult, group_results_by_standard
+from retrieval.models import group_results_by_standard
 from retrieval.pipeline import RetrievalPipeline
 from retrieval.service import RetrievalService, RetrievalUnavailableError
 

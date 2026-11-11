@@ -4,13 +4,12 @@ from types import ModuleType, SimpleNamespace
 
 import numpy as np
 import pytest
-
 from retrieval.config import RetrievalConfig
 from retrieval.embeddings import SentenceTransformerEncoder
 
 
 class FakeSentenceTransformer:
-    instances: list["FakeSentenceTransformer"] = []
+    instances: list[FakeSentenceTransformer] = []
     fail_on_cuda_init = False
     fail_on_cuda_encode = False
 

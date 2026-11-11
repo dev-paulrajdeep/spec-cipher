@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
-
 from corpus.models import DocumentChunk, StandardMetadata, StandardRelationship
 from intelligence.applicability import ApplicabilityAssessor, DeterministicRequirementInterpreter
-from intelligence.config import ApplicabilityWeights, IntelligenceConfig
+from intelligence.config import ApplicabilityWeights
 from intelligence.constraints import CandidateContext, ConstraintEvaluator
 from intelligence.evidence import EvidenceLocator, format_evidence
 from intelligence.models import ConstraintResult, ScoredCandidate

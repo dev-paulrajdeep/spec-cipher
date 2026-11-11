@@ -1,0 +1,163 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "speccipher"
+version = "0.2.0"
+description = "Standards intelligence and recommendation engine with two-plane architecture and pure domain kernel"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "SpecCipher Team" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "Flask>=3.0.0",
+    "werkzeug>=3.0.0",
+    "numpy>=1.26.0",
+    "faiss-cpu>=1.8.0",
+    "torch>=2.2.0",
+    "sentence-transformers>=3.0.0",
+    "pymupdf>=1.24.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "import-linter>=2.0",
+    "ruff>=0.4.0",
+    "pre-commit>=3.7.0",
+]
+e2e = [
+    "playwright>=1.42.0",
+]
+gpu = [
+    "faiss-gpu>=1.8.0",
+]
+all = [
+    "speccipher[dev,e2e]",
+]
+
+[project.scripts]
+speccipher = "speccipher.cli.manage:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["speccipher*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra -q --disable-warnings -p no:cacheprovider"
+markers = [
+    "unit: Fast unit tests without external models or services",
+    "integration: Integration tests between components or with lightweight fixtures",
+    "contract: Architecture and API contract tests",
+    "e2e: End-to-end browser and full workflow smoke tests",
+    "gpu: Tests requiring GPU or heavy model loading",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line length handled by formatter
+    "B008",  # do not perform function calls in argument defaults (standard for DI/Flask)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.importlinter]
+root_packages = ["speccipher"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "7-Layer Architecture (No Upward Imports)"
+type = "layers"
+layers = [
+    "speccipher.api | speccipher.cli",
+    "speccipher.services",
+    "speccipher.release",
+    "speccipher.retrieval | speccipher.decision | speccipher.ingestion | speccipher.understanding | speccipher.explanation",
+    "speccipher.catalog | speccipher.pdfio",
+    "speccipher.config",
+    "speccipher.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Layer 4 Core Engines Independence"
+type = "independence"
+modules = [
+    "speccipher.retrieval",
+    "speccipher.decision",
+    "speccipher.ingestion",
+    "speccipher.understanding",
+    "speccipher.explanation",
+]
+
+[[tool.importlinter.contracts]]
+name = "Offline/Serving Plane Boundary"
+type = "forbidden"
+source_modules = [
+    "speccipher.api",
+    "speccipher.services",
+    "speccipher.retrieval",
+    "speccipher.decision",
+    "speccipher.understanding",
+    "speccipher.explanation",
+]
+forbidden_modules = [
+    "speccipher.ingestion",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain Purity (No Upper Layers in Domain)"
+type = "forbidden"
+source_modules = [
+    "speccipher.domain",
+]
+forbidden_modules = [
+    "speccipher.config",
+    "speccipher.catalog",
+    "speccipher.pdfio",
+    "speccipher.retrieval",
+    "speccipher.decision",
+    "speccipher.ingestion",
+    "speccipher.understanding",
+    "speccipher.explanation",
+    "speccipher.release",
+    "speccipher.services",
+    "speccipher.api",
+    "speccipher.cli",
+]

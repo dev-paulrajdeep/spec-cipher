@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-import json
 import gc
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import torch
-
 from corpus.models import DocumentChunk
 from retrieval.config import RetrievalConfig
 from retrieval.indexing import IndexMetadata
 from retrieval.pipeline import RetrievalPipeline
 from retrieval.reranking import BGEReranker
-
 
 QUERY = "requirements for reinforced concrete water retaining structures"
 

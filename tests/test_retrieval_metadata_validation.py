@@ -1,7 +1,7 @@
-from pathlib import Path
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 
 def test_metadata_validation_reports_actual_production_coverage() -> None:

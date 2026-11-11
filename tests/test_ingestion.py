@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pymupdf
 import pytest
-
 from corpus import CorpusBuilder
 from corpus.ingestion import DocumentExtractor, OCRRouter, PDFReader
 

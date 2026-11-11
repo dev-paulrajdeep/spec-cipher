@@ -5,16 +5,6 @@ import json
 
 import pytest
 import requests
-
-from intelligence.models import (
-    ApplicabilityScore,
-    ConstraintReason,
-    ConstraintResult,
-    EvidenceItem,
-    Recommendation,
-    RelatedStandard,
-    RerankResult,
-)
 from backend.qwen_reasoning import (
     DEFAULT_QWEN_MODEL_NAME,
     DEFAULT_QWEN_OLLAMA_HOST,
@@ -26,9 +16,18 @@ from backend.qwen_reasoning import (
     MAX_EVIDENCE_TEXT_CHARACTERS,
     MAX_PROJECTION_CHARACTERS,
     MAX_RELATED_STANDARDS,
+    SYSTEM_INSTRUCTION,
     QwenConfig,
     QwenReasoner,
-    SYSTEM_INSTRUCTION,
+)
+from intelligence.models import (
+    ApplicabilityScore,
+    ConstraintReason,
+    ConstraintResult,
+    EvidenceItem,
+    Recommendation,
+    RelatedStandard,
+    RerankResult,
 )
 
 

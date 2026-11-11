@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 RESULTS_SCRIPT = Path(__file__).parents[1] / "frontend" / "js" / "results.js"
 ANALYZE_SCRIPT = Path(__file__).parents[1] / "frontend" / "js" / "analyze.js"
 INDEX_HTML = Path(__file__).parents[1] / "frontend" / "index.html"
