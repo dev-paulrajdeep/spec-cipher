@@ -5,12 +5,23 @@ No third-party packages (pydantic, faiss, numpy, flask, etc.) are imported.
 """
 
 from .candidates import Candidate, RequirementFeatures
+from .errors import (
+    DomainError,
+    MultipartAssemblyError,
+    OverrideValidationError,
+    ProvenanceValidationError,
+)
 from .identity import StandardId, StandardStub, format_standard_code
 from .models import DocumentChunk, LogicalDocument, Section, SourceFile
 from .recommendation import Confidence, ConfidenceLevel, Recommendation
 from .relationships import Relationship, RelationshipRole, StandardRelationship
 
 __all__ = [
+    # Errors
+    "DomainError",
+    "MultipartAssemblyError",
+    "OverrideValidationError",
+    "ProvenanceValidationError",
     # Identity
     "StandardId",
     "StandardStub",
