@@ -8,4 +8,6 @@ INVARIANT: Sibling engines in Layer 4 must NEVER import each other!
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .confidence import calculate_categorical_confidence
+
+__all__ = ["calculate_categorical_confidence"]

@@ -6,4 +6,6 @@ serving plane metadata and lexical search.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .sqlite import CatalogRepository
+
+__all__ = ["CatalogRepository"]

@@ -45,7 +45,17 @@ class ApplicationContainer:
         self._decision_engine: Any = decision_override
         self._explanation_service: Any = explanation_override
         self._catalog: Any = catalog_override
+        self._manifest: dict[str, Any] | None = None
+        self._is_mounted: bool = False
         self._is_closed: bool = False
+
+        if release_dir is not None:
+            self.mount_release(release_dir)
+        elif self._release_dir and (self._release_dir / "release.json").exists():
+            try:
+                self.mount_release(self._release_dir)
+            except Exception:
+                pass
 
     @property
     def settings(self) -> Settings:
@@ -54,6 +64,43 @@ class ApplicationContainer:
     @property
     def release_dir(self) -> Path:
         return self._release_dir
+
+    @property
+    def is_mounted(self) -> bool:
+        with self._lock:
+            return bool(self._is_mounted and not self._is_closed)
+
+    @property
+    def manifest(self) -> dict[str, Any] | None:
+        with self._lock:
+            return self._manifest
+
+    def mount_release(self, release_dir: Path | str) -> None:
+        """Mount and verify a corpus release, releasing previous SQLite file handles."""
+        with self._lock:
+            from speccipher.catalog.sqlite import CatalogRepository
+            from speccipher.release.manifest import resolve_release_path, verify_release
+
+            target_path = resolve_release_path(Path(release_dir))
+            manifest = verify_release(target_path)
+
+            old_catalog = self._catalog
+            new_catalog = None
+            db_path = target_path / "catalog.sqlite"
+            if db_path.exists():
+                new_catalog = CatalogRepository(db_path)
+
+            self._release_dir = target_path
+            self._manifest = manifest
+            self._catalog = new_catalog
+            self._is_mounted = True
+
+            # Invariant: Close previous catalog to prevent Windows file-lock PermissionErrors
+            if old_catalog is not None and hasattr(old_catalog, "close"):
+                try:
+                    old_catalog.close()
+                except Exception as exc:
+                    logger.warning("Error closing previous catalog: %s", exc)
 
     @property
     def retrieval_service(self) -> Any:
@@ -97,10 +144,12 @@ class ApplicationContainer:
 
     @property
     def catalog(self) -> Any:
-        """Lazily initialize the SQLite catalog repository."""
+        """Lazily initialize or return the SQLite catalog repository."""
         with self._lock:
             if self._is_closed:
                 raise RuntimeError("ApplicationContainer is closed")
+            if not self.is_mounted and self._catalog is None:
+                raise RuntimeError("Corpus release not mounted in container")
             if self._catalog is None:
                 self._catalog = self._init_catalog()
             return self._catalog
@@ -170,11 +219,14 @@ class ApplicationContainer:
 
     def _init_catalog(self) -> Any:
         """Construct catalog repository if catalog.sqlite exists, else return None."""
+        if not self._release_dir:
+            return None
         catalog_sqlite = self._release_dir / "catalog.sqlite"
         if not catalog_sqlite.exists():
             return None
-        # In M2, instantiate CatalogRepository(catalog_sqlite)
-        return None
+        from speccipher.catalog.sqlite import CatalogRepository
+
+        return CatalogRepository(catalog_sqlite)
 
     def warmup(self) -> dict[str, Any]:
         """Eagerly initialize all core resources ahead of traffic."""
@@ -203,15 +255,22 @@ class ApplicationContainer:
                 else:
                     retriever_ready = True
 
-            ready = retriever_ready
+            ready = bool(self.is_mounted or retriever_ready)
+            manifest = self._manifest or {}
+            counts = manifest.get("counts", {})
             return {
                 "ready": ready,
                 "status": "ready" if ready else "not_ready",
+                "release_id": manifest.get("release_id", "synth"),
+                "chunk_count": counts.get("chunks", 0),
+                "standard_count": counts.get("documents", 0),
+                "embedding_device": self._settings.retrieval.embedding_device,
+                "model_loaded": bool(ready),
                 "retriever_loaded": self._retrieval_service is not None,
                 "decision_loaded": self._decision_engine is not None,
                 "explanation_loaded": self._explanation_service is not None,
                 "retrieval": retriever_state,
-                "release_dir": str(self._release_dir),
+                "release_dir": str(self._release_dir) if self._release_dir else "",
             }
 
     def close(self) -> None:
@@ -219,11 +278,18 @@ class ApplicationContainer:
         with self._lock:
             if self._is_closed:
                 return
+            if self._catalog is not None and hasattr(self._catalog, "close"):
+                try:
+                    self._catalog.close()
+                except Exception as exc:
+                    logger.warning("Error closing catalog: %s", exc)
+                self._catalog = None
             if self._retrieval_service is not None and hasattr(self._retrieval_service, "close"):
                 try:
                     self._retrieval_service.close()
                 except Exception as exc:
                     logger.warning("Error closing retrieval service: %s", exc)
+            self._is_mounted = False
             self._is_closed = True
 
     def __enter__(self) -> ApplicationContainer:

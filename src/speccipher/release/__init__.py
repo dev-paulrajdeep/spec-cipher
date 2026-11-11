@@ -7,4 +7,16 @@ and atomic publication via CURRENT pointer.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .manifest import (
+    ReleaseIntegrityError,
+    ReleaseNotFoundError,
+    resolve_release_path,
+    verify_release,
+)
+
+__all__ = [
+    "ReleaseIntegrityError",
+    "ReleaseNotFoundError",
+    "resolve_release_path",
+    "verify_release",
+]

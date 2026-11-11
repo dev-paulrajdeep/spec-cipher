@@ -8,4 +8,6 @@ INVARIANT: Sibling engines in Layer 4 must NEVER import each other!
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .fusion import reciprocal_rank_fusion
+
+__all__ = ["reciprocal_rank_fusion"]
