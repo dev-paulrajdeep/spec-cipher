@@ -13,10 +13,14 @@ from .manifest import (
     resolve_release_path,
     verify_release,
 )
+from .publisher import ReleasePublisher, ReleasePublishError, publish_release
 
 __all__ = [
     "ReleaseIntegrityError",
     "ReleaseNotFoundError",
+    "ReleasePublishError",
+    "ReleasePublisher",
+    "publish_release",
     "resolve_release_path",
     "verify_release",
 ]

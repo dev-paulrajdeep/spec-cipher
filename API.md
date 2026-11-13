@@ -93,6 +93,48 @@ This state means the service completed but the retrieved evidence did not pass t
 
 This state indicates a missing/incompatible bundle, unavailable model, or serving failure. It must not be rendered as a no-match result.
 
+## Versioned API
+
+### `POST /v1/analyze`
+
+Accepts a requirement and optional bounded retrieval count:
+
+```json
+{"requirement":"concrete structures","options":{"top_k":5}}
+```
+
+Each primary recommendation returns a structured `standard_id`, categorical
+confidence and reason codes, separate retrieval score fields, and evidence
+items containing `chunk_id` values.
+
+### `POST /v1/explain`
+
+Accepts the requirement, a standard identity from an analysis response, and its
+evidence items. Only the chunk IDs are used from each evidence item; text and
+provenance fields sent by the caller are ignored.
+
+```json
+{
+  "requirement":"concrete structures",
+  "standard_id":{"code":"IS 456:2000"},
+  "evidence":[{"chunk_id":"pub_is456_2000_c12"}]
+}
+```
+
+Before explaining, the server reruns hybrid retrieval and decision checks for
+the requirement. It accepts the standard and chunk IDs only if they belong to
+the finalized eligible recommendation, then reloads the text and source
+provenance from the mounted read-only catalog. Ineligible standards, stubs,
+unknown chunks, mismatched evidence, and evidence from another requirement are
+rejected. When the configured explanation provider is unavailable or produces
+invalid output, the endpoint returns a deterministic summary of the verified
+source and page with `mode: "deterministic"`; otherwise `mode` is
+`"generative"`. Explanation output cannot change the analysis result.
+
+`GET /v1/standards`, `GET /v1/standards/{id}`, `GET /health/live`, and
+`GET /health/ready` provide catalog and health views. `POST /get_result` remains
+the compatibility route for the static frontend.
+
 `GET /health` reports the loaded model/device and returns `200` only when the
 process has an initialized retrieval model. It returns `503` with
 `"status":"not_ready"` otherwise. The endpoint deliberately reports the

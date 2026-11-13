@@ -443,6 +443,37 @@ def test_unavailable_model_uses_deterministic_fallback_without_chat() -> None:
     assert outcome.warning == EXPLANATION_FALLBACK_WARNING
 
 
+def test_verified_evidence_explanation_uses_the_shared_grounding_guard() -> None:
+    outcome = QwenReasoner(
+        QwenConfig("http://ollama.test", "model", 3),
+        post=lambda *args, **kwargs: FakeResponse(
+            {"message": {"content": valid_content()}}
+        ),
+        get=lambda *args, **kwargs: available_tags("model"),
+    ).explain_verified_evidence(
+        "waterproofing requirement",
+        standard_number="IS 2645:2003",
+        title="Waterproofing compounds",
+        status="current",
+        version="2003",
+        evidence=[
+            {
+                "chunk_id": "chunk-1",
+                "source_file": "official.pdf",
+                "page_start": 4,
+                "page_end": 5,
+                "section_number": "2.1",
+                "section_title": "Scope",
+                "text": "Direct source wording.",
+            }
+        ],
+    )
+
+    assert outcome.mode == EXPLANATION_MODE_GENERATIVE
+    assert outcome.explanation is not None
+    assert outcome.warning is None
+
+
 def test_explanation_rejects_unsupported_standard_mentions() -> None:
     bad = json.dumps(
         {

@@ -17,18 +17,26 @@ import sys
 from pathlib import Path
 
 import pytest
-from tests.e2e.fixtures.adapters import (
-    ApplicationContainer,
+from speccipher.api.app import create_app
+from speccipher.config.settings import Settings
+from speccipher.decision.confidence import calculate_categorical_confidence
+from speccipher.domain import (
     Candidate,
+    Confidence,
+    ConfidenceLevel,
     DocumentChunk,
-    Settings,
+    LogicalDocument,
+    Recommendation,
+    RelationshipRole,
+    Section,
+    SourceFile,
     StandardId,
+    StandardRelationship,
     StandardStub,
-    calculate_categorical_confidence,
-    create_app,
-    reciprocal_rank_fusion,
-    verify_release,
 )
+from speccipher.release.manifest import verify_release
+from speccipher.retrieval.fusion import reciprocal_rank_fusion
+from speccipher.services.container import ApplicationContainer
 from tests.e2e.fixtures.sample_data import (
     QUERY_FIRE_EXIT,
     QUERY_UNDERGROUND_RESERVOIR,
@@ -84,74 +92,115 @@ def test_t1_r1_01_pure_domain_kernel_purity():
 
 
 def test_t1_r1_02_layered_architecture_import_rules():
-    """E2E-T1-R1-02: Verify layered architecture contracts (no upward imports)."""
+    """E2E-T1-R1-02: Verify layered architecture contracts (no upward imports across layers)."""
     src_path = Path("src/speccipher")
-    if not src_path.exists():
-        # Architecture contract test: layer hierarchy definitions
-        layers = [
-            "domain",       # Layer 7
-            "config",       # Layer 6
-            "catalog",      # Layer 5
-            "retrieval",    # Layer 4
-            "release",      # Layer 3
-            "services",     # Layer 2
-            "api",          # Layer 1
-        ]
-        assert len(layers) == 7
-        return
+    assert src_path.exists(), "src/speccipher must exist"
 
-    # Check that domain does not import from higher layers
-    domain_files = list((src_path / "domain").glob("*.py"))
-    for py_file in domain_files:
-        content = py_file.read_text(encoding="utf-8")
-        assert "speccipher.api" not in content
-        assert "speccipher.services" not in content
-        assert "speccipher.release" not in content
+    layer_ranks = {
+        "domain": 7,
+        "config": 6,
+        "catalog": 5,
+        "pdfio": 5,
+        "retrieval": 4,
+        "decision": 4,
+        "ingestion": 4,
+        "understanding": 4,
+        "explanation": 4,
+        "release": 3,
+        "services": 2,
+        "api": 1,
+        "cli": 1,
+    }
+
+    violations = []
+    for pkg_name, rank in layer_ranks.items():
+        pkg_dir = src_path / pkg_name
+        if not pkg_dir.exists():
+            continue
+        for py_file in pkg_dir.rglob("*.py"):
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+            for node in ast.walk(tree):
+                imported_pkg = None
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name.startswith("speccipher."):
+                            imported_pkg = alias.name.split(".")[1]
+                elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("speccipher."):
+                    imported_pkg = node.module.split(".")[1]
+
+                if imported_pkg and imported_pkg in layer_ranks:
+                    target_rank = layer_ranks[imported_pkg]
+                    if rank > target_rank:
+                        violations.append(
+                            f"{py_file}: Layer {rank} ({pkg_name}) imports higher Layer {target_rank} ({imported_pkg})"
+                        )
+
+    assert violations == [], f"Upward import violations: {violations}"
 
 
 def test_t1_r1_03_sibling_engine_isolation():
     """E2E-T1-R1-03: Verify Layer 4 sibling modules never cross-import each other."""
     src_path = Path("src/speccipher")
-    if not src_path.exists():
-        siblings = ["retrieval", "decision", "ingestion", "understanding", "explanation"]
-        assert len(siblings) == 5
-        return
+    assert src_path.exists(), "src/speccipher must exist"
+    siblings = {"retrieval", "decision", "ingestion", "understanding", "explanation"}
 
-    for sib in ["retrieval", "decision", "ingestion", "understanding", "explanation"]:
+    violations = []
+    for sib in siblings:
         sib_dir = src_path / sib
         if not sib_dir.exists():
             continue
-        for py_file in sib_dir.glob("*.py"):
-            content = py_file.read_text(encoding="utf-8")
-            for other in ["retrieval", "decision", "ingestion", "understanding", "explanation"]:
-                if other != sib:
-                    assert f"speccipher.{other}" not in content, (
-                        f"Sibling isolation violated in {py_file}: imports speccipher.{other}"
+        for py_file in sib_dir.rglob("*.py"):
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+            for node in ast.walk(tree):
+                imported = None
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name.startswith("speccipher."):
+                            imported = alias.name.split(".")[1]
+                elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("speccipher."):
+                    imported = node.module.split(".")[1]
+
+                if imported and imported in siblings and imported != sib:
+                    violations.append(
+                        f"Sibling isolation violated in {py_file}: imports speccipher.{imported}"
                     )
+    assert violations == [], f"Sibling violations: {violations}"
 
 
 def test_t1_r1_04_serving_plane_ingestion_isolation():
     """E2E-T1-R1-04: Verify serving plane modules never import speccipher.ingestion."""
     src_path = Path("src/speccipher")
-    if not src_path.exists():
-        return
+    assert src_path.exists(), "src/speccipher must exist"
 
+    violations = []
     for pkg in ["api", "services", "retrieval", "decision", "understanding", "explanation"]:
         pkg_dir = src_path / pkg
         if not pkg_dir.exists():
             continue
-        for py_file in pkg_dir.glob("*.py"):
-            content = py_file.read_text(encoding="utf-8")
-            assert "speccipher.ingestion" not in content, (
-                f"Serving plane violation: {py_file} imports speccipher.ingestion"
-            )
+        for py_file in pkg_dir.rglob("*.py"):
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+            for node in ast.walk(tree):
+                imported = None
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name == "speccipher.ingestion" or alias.name.startswith("speccipher.ingestion."):
+                            imported = alias.name
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    if node.module == "speccipher.ingestion" or node.module.startswith("speccipher.ingestion."):
+                        imported = node.module
+
+                if imported:
+                    violations.append(
+                        f"Serving plane violation: {py_file} imports '{imported}'"
+                    )
+    assert violations == [], f"Serving plane ingestion violations: {violations}"
 
 
 def test_t1_r1_05_application_container_lazy_init(tmp_path: Path):
     """E2E-T1-R1-05: Verify composition root instantiates cleanly with zero heavy imports."""
     builder = SyntheticCorpusReleaseBuilder(tmp_path)
     rel_dir = builder.build_valid_release()
-    settings = Settings(release_dir=rel_dir, embedding_device="cpu")
+    settings = Settings.from_env(release_path=rel_dir, embedding_device="cpu")
 
     container = ApplicationContainer(settings, rel_dir)
     assert container.is_mounted is True
@@ -288,13 +337,35 @@ def test_t1_r3_02_absolute_page_number_mapping(container: ApplicationContainer):
 
 
 def test_t1_r3_03_auditable_operator_overrides():
-    """E2E-T1-R3-03: Verify operator overrides structure and audit metadata."""
-    override = SAMPLE_OPERATOR_OVERRIDES["overrides"][0]
-    assert override["source_filename"] == "SP 7_2026-401-800.pdf"
-    assert override["operator"] == "lead-architect"
-    assert "timestamp" in override
-    assert "rationale" in override
-    assert override["asserted_standard"]["code"] == "SP 7:2026"
+    """E2E-T1-R3-03: Verify operator overrides parser validates audit metadata and creates typed OperatorOverride."""
+    from speccipher.ingestion.overrides.loader import OperatorOverride, validate_operator_override
+
+    raw_override = {
+        "source_filename": "SP 7_2026-401-800.pdf",
+        "operator": "lead-architect",
+        "timestamp": "2026-11-11T08:00:00Z",
+        "rationale": "Headless volume 2 of SP 7:2026 covering pages 401-800",
+        "asserted_standard": {
+            "family": "SP",
+            "number": "7",
+            "part": None,
+            "year": 2026,
+            "code": "SP 7:2026",
+        },
+    }
+
+    override = validate_operator_override(raw_override)
+    assert isinstance(override, OperatorOverride)
+    assert override.source_filename == "SP 7_2026-401-800.pdf"
+    assert override.operator == "lead-architect"
+    assert override.timestamp == "2026-11-11T08:00:00Z"
+    assert override.rationale == "Headless volume 2 of SP 7:2026 covering pages 401-800"
+    assert override.asserted_standard.code == "SP 7:2026"
+
+    # Verify serialization round-trip preserves audit provenance
+    d = override.to_dict()
+    assert d["operator"] == "lead-architect"
+    assert d["source_filename"] == "SP 7_2026-401-800.pdf"
 
 
 def test_t1_r3_04_standard_stub_representation():
@@ -364,17 +435,51 @@ def test_t1_r4_03_reciprocal_rank_fusion():
 
 
 def test_t1_r4_04_single_stage_reranking():
-    """E2E-T1-R4-04: Verify single consolidated reranking stage output."""
-    candidates = [
-        Candidate(
-            chunk=DocumentChunk("c1", None, "D1", "f1", 1, 2, "1", "Scope", "text", True),
-            dense_score=0.82,
-            lexical_score=0.75,
-            rrf_score=0.032,
-            rerank_score=0.88,
-        )
-    ]
-    assert candidates[0].rerank_score == 0.88
+    """E2E-T1-R4-04: Verify single consolidated reranking stage dynamically scores and reorders candidates."""
+    from intelligence.reranking.reranker import TokenOverlapReranker
+    from retrieval.models.result import RetrievalResult
+    from corpus.models import DocumentChunk as LegacyChunk
+
+    query = "reinforced concrete structural design requirements"
+
+    c_relevant = LegacyChunk(
+        chunk_id="chk-relevant",
+        standard_number="IS 456",
+        source_file="is456.pdf",
+        page_start=1,
+        page_end=3,
+        section_number="1",
+        section_title="Scope",
+        text="Design and execution of reinforced concrete structures in buildings.",
+    )
+    c_unrelated = LegacyChunk(
+        chunk_id="chk-unrelated",
+        standard_number="IS 800",
+        source_file="is800.pdf",
+        page_start=1,
+        page_end=3,
+        section_number="1",
+        section_title="Scope",
+        text="Hot rolled steel structural fabrication, welding, and bolted connections.",
+    )
+
+    # Initial order: unrelated candidate is rank 1, relevant is rank 2
+    cands = (
+        RetrievalResult(chunk=c_unrelated, similarity_score=0.70, rank=1),
+        RetrievalResult(chunk=c_relevant, similarity_score=0.65, rank=2),
+    )
+
+    reranker = TokenOverlapReranker()
+    reranked = reranker.rerank(query, cands)
+
+    assert len(reranked) == 2
+    # Verify reranker dynamically promoted relevant candidate to rank 1
+    assert reranked[0].candidate.chunk.chunk_id == "chk-relevant"
+    assert reranked[0].result.rank == 1
+    assert reranked[0].result.normalized_score > reranked[1].result.normalized_score
+    assert reranked[0].result.raw_score > 0.0
+    # Verify first-stage semantic similarity score was preserved
+    assert reranked[0].candidate.similarity_score == 0.65
 
 
 def test_t1_r4_05_categorical_confidence_with_reasons():
@@ -423,7 +528,11 @@ def test_t1_r5_02_decoupled_explain_endpoint(client):
     """E2E-T1-R5-02: Verify POST /v1/explain returns generative or deterministic summary."""
     res = client.post(
         "/v1/explain",
-        json={"requirement": QUERY_FIRE_EXIT, "standard_id": "SP 7:2026", "evidence": []},
+        json={
+            "requirement": QUERY_FIRE_EXIT,
+            "standard_id": "SP 7:2026",
+            "evidence": ["chk-sp7-02"],
+        },
     )
     assert res.status_code == 200
     data = res.get_json()
@@ -453,7 +562,8 @@ def test_t1_r5_04_health_live_and_ready(client):
     ready_data = res_ready.get_json()
     assert ready_data["status"] == "ready"
     assert "release_id" in ready_data
-    assert ready_data["model_loaded"] is True
+    # The fake encoder keeps this synthetic workflow independent of model weights.
+    assert ready_data["model_loaded"] is False
 
 
 def test_t1_r5_05_legacy_get_result_parity(client):

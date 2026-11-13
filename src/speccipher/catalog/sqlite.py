@@ -15,8 +15,10 @@ class CatalogRepository:
         self.db_path = Path(db_path)
         if not self.db_path.exists():
             raise FileNotFoundError(f"Catalog SQLite database not found: {self.db_path}")
-        self.conn = sqlite3.connect(self.db_path)
+        uri = f"{self.db_path.resolve().as_uri()}?mode=ro"
+        self.conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA query_only = ON")
 
     def close(self) -> None:
         """Close SQLite database connection to release file locks."""
@@ -67,23 +69,44 @@ class CatalogRepository:
 
         fts_query = " OR ".join(f'"{t}"' for t in terms[:8])
         cur = self.conn.cursor()
-        try:
-            cur.execute(
-                """
-                SELECT c.chunk_id, c.standard_code, c.source_file_id, c.absolute_page_start,
-                       c.absolute_page_end, c.section_number, c.section_title, c.text, c.is_eligible,
-                       bm25(chunks_fts) as rank_score
-                FROM chunks_fts
-                JOIN chunks c ON chunks_fts.chunk_id = c.chunk_id
-                WHERE chunks_fts MATCH ?
-                ORDER BY rank_score ASC
-                LIMIT ?
+        cur.execute(
+            """
+            SELECT c.chunk_id, c.logical_doc_id, c.standard_code, c.source_file_id, c.absolute_page_start,
+                   c.absolute_page_end, c.section_number, c.section_title, c.text, c.is_eligible,
+                   bm25(chunks_fts) as rank_score
+            FROM chunks_fts
+            JOIN chunks c ON chunks_fts.chunk_id = c.chunk_id
+            WHERE chunks_fts MATCH ?
+            ORDER BY rank_score ASC
+            LIMIT ?
+            """,
+            (fts_query, safe_limit),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+    def get_chunks_by_ids(self, chunk_ids: list[str]) -> dict[str, dict[str, Any]]:
+        """Fetch provenance records for known chunk IDs in caller order-independent form."""
+        if not chunk_ids:
+            return {}
+        records: dict[str, dict[str, Any]] = {}
+        cursor = self.conn.cursor()
+        for offset in range(0, len(chunk_ids), 500):
+            batch = chunk_ids[offset : offset + 500]
+            placeholders = ",".join("?" for _ in batch)
+            cursor.execute(
+                f"""
+                SELECT c.chunk_id, c.logical_doc_id, c.standard_code, c.source_file_id,
+                       COALESCE(s.file_name, s.relative_path, s.id) AS source_file,
+                       c.absolute_page_start, c.absolute_page_end, c.section_number,
+                       c.section_title, c.text, c.is_eligible
+                FROM chunks AS c
+                JOIN source_files AS s ON s.id = c.source_file_id
+                WHERE c.chunk_id IN ({placeholders})
                 """,
-                (fts_query, safe_limit),
+                batch,
             )
-            return [dict(r) for r in cur.fetchall()]
-        except sqlite3.OperationalError:
-            return []
+            records.update((row["chunk_id"], dict(row)) for row in cursor.fetchall())
+        return records
 
     def get_standards(self, query: str = "", limit: int = 10) -> list[dict[str, Any]]:
         """Retrieve logical standard documents matching optional query prefix."""

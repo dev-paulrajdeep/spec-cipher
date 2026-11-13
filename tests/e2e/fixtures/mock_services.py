@@ -9,12 +9,19 @@ from typing import Any
 
 class MockEncoder:
     """Deterministic, GPU-free embedding encoder.
-    
+
     Generates 1024-dimensional unit-norm float32 vectors derived from SHA-256 tokens.
     """
 
     def __init__(self, dim: int = 1024):
         self.dim = dim
+
+    @property
+    def dimension(self) -> int:
+        return self.dim
+
+    def encode_text(self, text: str) -> list[float]:
+        return self.encode(text)
 
     def encode(self, text: str) -> list[float]:
         # Generate pseudo-random deterministic vector from text hash

@@ -15,11 +15,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from tests.e2e.fixtures.adapters import (
-    ApplicationContainer,
-    Settings,
-    create_app,
-)
+from speccipher.api.app import create_app
+from speccipher.config.settings import Settings
+from speccipher.services.container import ApplicationContainer
 from tests.e2e.fixtures.sample_data import (
     QUERY_STEEL_BARS_STUB,
     QUERY_UNDERGROUND_RESERVOIR,

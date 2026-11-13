@@ -9,5 +9,6 @@ INVARIANT: Sibling engines in Layer 4 must NEVER import each other!
 from __future__ import annotations
 
 from .confidence import calculate_categorical_confidence
+from .engine import Decision, DecisionEngine, DecisionRun
 
-__all__ = ["calculate_categorical_confidence"]
+__all__ = ["Decision", "DecisionEngine", "DecisionRun", "calculate_categorical_confidence"]

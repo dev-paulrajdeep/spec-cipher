@@ -8,14 +8,9 @@ version = "0.2.0"
 description = "Standards intelligence and recommendation engine with two-plane architecture and pure domain kernel"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
-authors = [
-    { name = "SpecCipher Team" }
-]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
-    "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
@@ -25,11 +20,13 @@ dependencies = [
     "faiss-cpu>=1.8.0",
     "torch>=2.2.0",
     "sentence-transformers>=3.0.0",
-    "pymupdf>=1.24.0",
     "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
+build = [
+    "pymupdf>=1.24.0",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
@@ -42,9 +39,6 @@ e2e = [
 ]
 gpu = [
     "faiss-gpu>=1.8.0",
-]
-all = [
-    "speccipher[dev,e2e]",
 ]
 
 [project.scripts]
@@ -63,7 +57,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-ra -q --disable-warnings -p no:cacheprovider"
+addopts = "-ra -q --disable-warnings -p no:cacheprovider --capture=sys -p no:cov"
 markers = [
     "unit: Fast unit tests without external models or services",
     "integration: Integration tests between components or with lightweight fixtures",
@@ -139,6 +133,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "speccipher.ingestion",
+    "speccipher.offline",
 ]
 
 [[tool.importlinter.contracts]]

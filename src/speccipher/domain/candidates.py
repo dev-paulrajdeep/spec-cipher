@@ -6,6 +6,7 @@ Constraint: Python standard library ONLY (zero third-party imports).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Any
 
 from .models import DocumentChunk
@@ -63,6 +64,20 @@ class Candidate:
             if data.get("rerank_score") is not None
             else None,
         )
+
+
+@dataclass(frozen=True)
+class RerankScore:
+    """Raw reranker output and its bounded ranking value, separate from applicability."""
+
+    raw_score: float
+    normalized_score: float
+
+    def __post_init__(self) -> None:
+        if not isfinite(self.raw_score) or not isfinite(self.normalized_score):
+            raise ValueError("rerank scores must be finite")
+        if self.normalized_score < 0.0 or self.normalized_score > 1.0:
+            raise ValueError("normalized rerank score must be in [0, 1]")
 
 
 @dataclass(frozen=True)

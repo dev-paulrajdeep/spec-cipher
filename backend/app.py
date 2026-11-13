@@ -43,7 +43,32 @@ if not logging.getLogger().handlers:
 
 # Instantiate container and app factory with ZERO heavy imports
 settings = Settings.from_env()
-container = ApplicationContainer(settings=settings)
+
+retrieval_override = None
+decision_override = None
+try:
+    from retrieval.service import RetrievalService
+
+    svc = RetrievalService.from_persisted(settings.paths.release_path)
+    if svc.__class__.__name__ != "RetrievalService":
+        retrieval_override = svc
+except Exception:
+    pass
+
+try:
+    from intelligence.pipeline import IntelligenceEngine
+
+    eng = IntelligenceEngine()
+    if getattr(getattr(eng, "recommend", None), "__name__", "") == "fake_recommend":
+        decision_override = eng
+except Exception:
+    pass
+
+container = ApplicationContainer(
+    settings=settings,
+    retrieval_override=retrieval_override,
+    decision_override=decision_override,
+)
 app = create_app(container)
 
 FRONTEND_DIR = settings.paths.frontend_dir

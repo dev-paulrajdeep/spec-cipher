@@ -24,6 +24,7 @@ class BGEReranker:
         max_seq_length: int | None = None,
         allow_cpu_fallback: bool = False,
         use_fp16: bool = True,
+        local_files_only: bool = False,
     ) -> None:
         if not model_name.strip():
             raise ValueError("model_name must not be empty")
@@ -37,6 +38,8 @@ class BGEReranker:
             raise ValueError("max_seq_length must be positive when provided")
         if not isinstance(use_fp16, bool):
             raise ValueError("use_fp16 must be a boolean")
+        if not isinstance(local_files_only, bool):
+            raise ValueError("local_files_only must be a boolean")
         self._model_name = model_name
         self._model_version = model_version
         self._device = device
@@ -44,6 +47,7 @@ class BGEReranker:
         self._max_seq_length = max_seq_length
         self._allow_cpu_fallback = allow_cpu_fallback
         self._use_fp16 = use_fp16
+        self._local_files_only = local_files_only
         self._model = None
         self._resolved_device: str | None = None
 
@@ -67,7 +71,9 @@ class BGEReranker:
     ) -> tuple[RetrievalResult, ...]:
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query must be a non-empty string")
-        if top_n is not None and (not isinstance(top_n, int) or isinstance(top_n, bool) or top_n < 1):
+        if top_n is not None and (
+            not isinstance(top_n, int) or isinstance(top_n, bool) or top_n < 1
+        ):
             raise ValueError("top_n must be positive")
         if not candidates:
             return ()
@@ -111,9 +117,15 @@ class BGEReranker:
                     "CUDA is unavailable for the configured reranker device; "
                     "set allow_cpu_fallback=True or device='cpu' explicitly"
                 )
-            model_kwargs = {"torch_dtype": torch.float16} if self._use_fp16 and self._resolved_device == "cuda" else {}
+            model_kwargs = (
+                {"torch_dtype": torch.float16}
+                if self._use_fp16 and self._resolved_device == "cuda"
+                else {}
+            )
             self._model = CrossEncoder(
                 self._model_name,
+                revision=self._model_version,
+                local_files_only=self._local_files_only,
                 device=self._resolved_device,
                 model_kwargs=model_kwargs or None,
             )
@@ -126,10 +138,12 @@ class BGEReranker:
         if self._model is not None:
             self._model = None
             import gc
+
             gc.collect()
             try:
                 import torch
+
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
-                pass
+                pass

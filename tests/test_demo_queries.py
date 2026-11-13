@@ -6,6 +6,8 @@ import sys
 import pytest
 from backend.qwen_reasoning import ExplanationOutcome
 
+pytestmark = pytest.mark.e2e
+
 
 @pytest.fixture(scope="module")
 def app_module():

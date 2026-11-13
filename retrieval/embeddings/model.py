@@ -32,6 +32,7 @@ class SentenceTransformerEncoder:
         embedding_dimension: int | None = None,
         use_fp16: bool = True,
         model_version: str = "main",
+        local_files_only: bool | None = None,
     ) -> None:
         if not model_name.strip():
             raise ValueError("model_name must not be empty")
@@ -56,6 +57,7 @@ class SentenceTransformerEncoder:
         self._max_seq_length = max_seq_length
         self._embedding_dimension = embedding_dimension
         self._use_fp16 = use_fp16
+        self._local_files_only = local_files_only
         self._model = None
         self._resolved_device = device
         self._model_lock = RLock()
@@ -71,6 +73,11 @@ class SentenceTransformerEncoder:
     @property
     def model_version(self) -> str:
         return self._model_version
+
+    @property
+    def model_loaded(self) -> bool:
+        """Whether the transformer weights have been loaded into this process."""
+        return self._model is not None
 
     @property
     def device(self) -> str:
@@ -97,7 +104,9 @@ class SentenceTransformerEncoder:
 
     def encode_batch(self, texts: list[str]) -> np.ndarray:
         if not texts:
-            dimension = self._embedding_dimension or (self.dimension if self._model is not None else 0)
+            dimension = self._embedding_dimension or (
+                self.dimension if self._model is not None else 0
+            )
             return np.empty((0, dimension), dtype=np.float32)
         if any(not isinstance(text, str) or not text.strip() for text in texts):
             raise ValueError("Embedding input texts must all be non-empty strings")
@@ -157,7 +166,11 @@ class SentenceTransformerEncoder:
                 except Exception:
                     logger.warning("CUDA availability check failed; using CPU", exc_info=True)
 
-            if self._device == "cuda" and preferred_device != "cuda" and not self._allow_cpu_fallback:
+            if (
+                self._device == "cuda"
+                and preferred_device != "cuda"
+                and not self._allow_cpu_fallback
+            ):
                 raise RuntimeError(
                     "CUDA was requested for embeddings but is unavailable; set "
                     "SPEC_CIPHER_ALLOW_CPU_FALLBACK=1 to permit CPU fallback"
@@ -177,7 +190,13 @@ class SentenceTransformerEncoder:
     def _create_model(self, sentence_transformer, torch, device: str):
         model_kwargs = {"torch_dtype": torch.float16} if self._use_fp16 and device == "cuda" else {}
         kwargs = {"device": device, "model_kwargs": model_kwargs or None}
-        if os.getenv("SPEC_CIPHER_HF_OFFLINE", "0") == "1" or os.getenv("SPEC_CIPHER_ALLOW_MODEL_DOWNLOAD", "0") != "1":
+        local_files_only = self._local_files_only
+        if local_files_only is None:
+            local_files_only = (
+                os.getenv("SPEC_CIPHER_HF_OFFLINE", "0") == "1"
+                or os.getenv("SPEC_CIPHER_ALLOW_MODEL_DOWNLOAD", "0") != "1"
+            )
+        if local_files_only:
             # This is a SentenceTransformer constructor option, not a Hugging
             # Face model kwarg. Cached serving is the safe default: model
             # acquisition is an explicit setup action, never a surprise at
@@ -211,6 +230,7 @@ class SentenceTransformerEncoder:
     def _clear_model(self, torch) -> None:
         self._model = None
         import gc
+
         gc.collect()
         try:
             if torch.cuda.is_available():
@@ -224,7 +244,7 @@ class SentenceTransformerEncoder:
             if self._model is not None:
                 try:
                     import torch
+
                     self._clear_model(torch)
                 except ImportError:
                     self._model = None
-

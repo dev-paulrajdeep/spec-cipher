@@ -135,15 +135,28 @@ def test_bge_reranker_cpu_policy_is_explicit(monkeypatch: pytest.MonkeyPatch) ->
     torch = ModuleType("torch")
     torch.cuda = SimpleNamespace(is_available=lambda: False)
     sentence_transformers = ModuleType("sentence_transformers")
-    sentence_transformers.CrossEncoder = lambda name, device, model_kwargs=None: SimpleNamespace()
+    calls = []
+
+    def cross_encoder(name, **kwargs):
+        calls.append((name, kwargs))
+        return SimpleNamespace()
+
+    sentence_transformers.CrossEncoder = cross_encoder
     monkeypatch.setitem(sys.modules, "torch", torch)
     monkeypatch.setitem(sys.modules, "sentence_transformers", sentence_transformers)
 
     with pytest.raises(RuntimeError, match="allow_cpu_fallback"):
         BGEReranker(device="cuda")._load_model()
-    fallback = BGEReranker(device="cuda", allow_cpu_fallback=True)
+    fallback = BGEReranker(
+        device="cuda",
+        allow_cpu_fallback=True,
+        model_version="test-revision",
+        local_files_only=True,
+    )
     fallback._load_model()
     assert fallback.device == "cpu"
+    assert calls[0][1]["revision"] == "test-revision"
+    assert calls[0][1]["local_files_only"] is True
 
 
 def test_pipeline_retrieval_reranker_runs_after_faiss_and_preserves_identity() -> None:

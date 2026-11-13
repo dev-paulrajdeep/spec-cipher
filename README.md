@@ -93,6 +93,14 @@ Dry-run:
 .\.venv\Scripts\python.exe scripts\update_corpus.py --check
 ```
 
+## Corpus release verification and rollback
+
+SpecCipher 2.0 release directories use a separate immutable release contract.
+After a complete release has been staged, verify or publish it with the
+`speccipher` CLI. See [release operations](docs/RELEASES.md) for the commands,
+manifest checks, and the current limitation that release artifact building is
+not yet available through the CLI.
+
 ## Run the current MVP
 
 Use Python 3.11+ and a project-local virtual environment, then install

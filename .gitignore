@@ -51,8 +51,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Generated retrieval bundle; rebuild from the available corpus.
+# Generated retrieval bundle and immutable release data; rebuild from local sources.
 retrieval-index/
+/data/
 
 # Translations
 *.mo
@@ -233,17 +234,10 @@ __marimo__/
 officialBIS/*
 !officialBIS/.gitkeep
 
-# Generated corpus artifacts under corpus/data (except the historical demo alias).
-!corpus/data/
-corpus/data/*.json
-corpus/data/*.jsonl
-corpus/data/documents/
-corpus/data/_assets/
+# Generated corpus artifacts stay local. Keep only the historical demo alias tracked.
+corpus/data/*
 !corpus/data/IS_Codes_for_Industrial_Pumps_Engineer_Checklist.json
-!corpus/data/corpus.chunks.jsonl
-!corpus/data/manifest.json
-!corpus/data/documents/
-!corpus/data/documents/*.json
+corpus/database/*.db
 
 #Temp testing files
 .tmp

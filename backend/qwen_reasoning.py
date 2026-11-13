@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 import logging
 import os
 import re
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Callable, Literal, Mapping, TypedDict
+from typing import Any, Literal, TypedDict
 
 import requests
-
 from corpus.processing.normalizer import find_document_numbers, normalize_document_number
 from intelligence.models import Recommendation
-
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +116,7 @@ class QwenConfig:
     think: bool = DEFAULT_QWEN_THINK
 
     @classmethod
-    def from_environment(cls) -> "QwenConfig":
+    def from_environment(cls) -> QwenConfig:
         host = (
             os.getenv("SPEC_CIPHER_OLLAMA_HOST")
             or os.getenv("QWEN_OLLAMA_HOST")
@@ -256,6 +255,133 @@ class QwenReasoner:
     def explain(self, user_input: str, recommendation: Recommendation) -> ExplanationOutcome:
         """Generate a grounded explanation, falling back deterministically."""
         fallback = deterministic_explanation(recommendation)
+        try:
+            projection = self.project_recommendation(user_input, recommendation)
+        except Exception as exc:
+            reason = _short_failure_reason(exc)
+            logger.warning(
+                "Qwen explanation projection fallback reason=%s type=%s",
+                reason,
+                exc.__class__.__name__,
+            )
+            return ExplanationOutcome(
+                fallback,
+                EXPLANATION_FALLBACK_WARNING,
+                EXPLANATION_MODE_DETERMINISTIC,
+                reason,
+            )
+        return self._explain_projection(projection, fallback, recommendation)
+
+    def explain_verified_evidence(
+        self,
+        user_input: str,
+        *,
+        standard_number: str,
+        title: str | None,
+        status: str | None,
+        version: str | None,
+        evidence: list[Mapping[str, Any]],
+    ) -> ExplanationOutcome:
+        """Explain catalog-verified evidence without trusting client-supplied text."""
+        primary = evidence[0] if evidence else None
+        if primary:
+            snippet = _safe_evidence_snippet(str(primary.get("text") or ""))
+            summary = (
+                f"{standard_number} is explained using verified source evidence from "
+                f"{primary.get('source_file', 'the mounted release')} "
+                f"(page {primary.get('page_start', 'unknown')})"
+            )
+            if snippet:
+                summary += f": {snippet}"
+            else:
+                summary += "."
+            fallback: Explanation = {
+                "summary": summary,
+                "key_points": [
+                    f"Evidence chunk: {primary.get('chunk_id', 'unknown')}.",
+                    f"Source page: {primary.get('page_start', 'unknown')}.",
+                ],
+                "caveats": [
+                    "Verify the complete current official publication before procurement use."
+                ],
+            }
+        else:
+            fallback = {
+                "summary": f"No verified clause-level evidence was supplied for {standard_number}.",
+                "key_points": [],
+                "caveats": ["No source evidence was available for this explanation."],
+            }
+
+        try:
+            return self._explain_verified_evidence(
+                user_input,
+                standard_number=standard_number,
+                title=title,
+                status=status,
+                version=version,
+                evidence=evidence,
+                fallback=fallback,
+            )
+        except Exception as exc:
+            reason = _short_failure_reason(exc)
+            logger.warning(
+                "Qwen verified-evidence projection fallback reason=%s type=%s",
+                reason,
+                exc.__class__.__name__,
+            )
+            return ExplanationOutcome(
+                fallback,
+                EXPLANATION_FALLBACK_WARNING,
+                EXPLANATION_MODE_DETERMINISTIC,
+                reason,
+            )
+
+    def _explain_verified_evidence(
+        self,
+        user_input: str,
+        *,
+        standard_number: str,
+        title: str | None,
+        status: str | None,
+        version: str | None,
+        evidence: list[Mapping[str, Any]],
+        fallback: Explanation,
+    ) -> ExplanationOutcome:
+        bounded_evidence = [
+            {
+                "standard_number": standard_number,
+                "chunk_id": item["chunk_id"],
+                "source_file": item["source_file"],
+                "page_start": item["page_start"],
+                "page_end": item["page_end"],
+                "section_number": item.get("section_number"),
+                "section_title": item.get("section_title"),
+                "text": _truncate(str(item.get("text") or ""), MAX_EVIDENCE_TEXT_CHARACTERS),
+                "relevance_score": None,
+            }
+            for item in evidence[:MAX_RELATED_STANDARDS]
+        ]
+        projection: dict[str, Any] = {
+            "user_input": _truncate(user_input, MAX_USER_INPUT_CHARACTERS),
+            "standard_number": standard_number,
+            "title": title,
+            "status": status,
+            "version": version,
+            "final_score": None,
+            "constraints": {},
+            "applicability": {},
+            "evidence": bounded_evidence,
+            "related_standards": [],
+        }
+        _bound_evidence_text(projection)
+        return self._explain_projection(projection, fallback, None)
+
+    def _explain_projection(
+        self,
+        projection: dict[str, Any],
+        fallback: Explanation,
+        recommendation: Recommendation | None,
+    ) -> ExplanationOutcome:
         started = perf_counter()
         model = self._config.model_name
         host = self._config.ollama_host
@@ -276,7 +402,6 @@ class QwenReasoner:
                     EXPLANATION_MODE_DETERMINISTIC,
                     "configured_model_unavailable",
                 )
-            projection = self.project_recommendation(user_input, recommendation)
             request_body: dict[str, Any] = {
                 "model": model,
                 "messages": self.build_messages(projection),
@@ -516,7 +641,7 @@ def _parse_explanation(content: str) -> Explanation:
 
 def _validate_explanation(
     explanation: Explanation,
-    recommendation: Recommendation,
+    recommendation: Recommendation | None,
     projection: Mapping[str, Any],
 ) -> None:
     summary = explanation["summary"].strip()
@@ -560,14 +685,19 @@ def _validate_explanation(
 
 
 def _allowed_standard_numbers(
-    recommendation: Recommendation,
+    recommendation: Recommendation | None,
     projection: Mapping[str, Any],
 ) -> set[str]:
     """Allow recommendation IDs plus any document numbers present in supplied evidence."""
     allowed: set[str] = set()
-    if recommendation.standard_number:
-        allowed.add(recommendation.standard_number)
-        normalized = normalize_document_number(recommendation.standard_number)
+    standard_number = (
+        recommendation.standard_number
+        if recommendation is not None
+        else projection.get("standard_number")
+    )
+    if isinstance(standard_number, str) and standard_number:
+        allowed.add(standard_number)
+        normalized = normalize_document_number(standard_number)
         if normalized:
             allowed.add(normalized)
 

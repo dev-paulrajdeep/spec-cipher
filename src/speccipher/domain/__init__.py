@@ -4,7 +4,7 @@ All entities in this package depend exclusively on the Python standard library.
 No third-party packages (pydantic, faiss, numpy, flask, etc.) are imported.
 """
 
-from .candidates import Candidate, RequirementFeatures
+from .candidates import Candidate, RequirementFeatures, RerankScore
 from .errors import (
     DomainError,
     MultipartAssemblyError,
@@ -12,9 +12,10 @@ from .errors import (
     ProvenanceValidationError,
 )
 from .identity import StandardId, StandardStub, format_standard_code
-from .models import DocumentChunk, LogicalDocument, Section, SourceFile
+from .models import DocumentChunk, LogicalDocument, MissingVolume, Section, SourceFile
 from .recommendation import Confidence, ConfidenceLevel, Recommendation
 from .relationships import Relationship, RelationshipRole, StandardRelationship
+from .requirements import Requirement
 
 __all__ = [
     # Errors
@@ -29,6 +30,7 @@ __all__ = [
     # Models
     "SourceFile",
     "LogicalDocument",
+    "MissingVolume",
     "Section",
     "DocumentChunk",
     # Relationships
@@ -37,7 +39,9 @@ __all__ = [
     "Relationship",
     # Candidates
     "Candidate",
+    "RerankScore",
     "RequirementFeatures",
+    "Requirement",
     # Recommendation
     "ConfidenceLevel",
     "Confidence",

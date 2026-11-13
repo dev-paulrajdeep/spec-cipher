@@ -8,7 +8,13 @@ import pytest
 
 from speccipher.domain.candidates import Candidate, RequirementFeatures
 from speccipher.domain.identity import StandardId, StandardStub
-from speccipher.domain.models import DocumentChunk, LogicalDocument, Section, SourceFile
+from speccipher.domain.models import (
+    DocumentChunk,
+    LogicalDocument,
+    MissingVolume,
+    Section,
+    SourceFile,
+)
 from speccipher.domain.recommendation import Confidence, Recommendation
 from speccipher.domain.relationships import RelationshipRole, StandardRelationship
 
@@ -88,14 +94,25 @@ class TestStandardStub:
 
 class TestModels:
     def test_source_file_validation(self) -> None:
-        sf = SourceFile(source_file_id="src-1", filename="IS456.pdf", page_count=100)
+        sf = SourceFile(
+            source_file_id="src-1",
+            filename="IS456-vol2.pdf",
+            page_count=100,
+            relative_path="sources/IS456-vol2.pdf",
+            part_index=2,
+            page_offset=400,
+        )
         assert sf.page_count == 100
+        assert sf.absolute_page_for(1) == 401
+        assert sf.absolute_page_for(100) == 500
         d = sf.to_dict()
         restored = SourceFile.from_dict(d)
         assert restored == sf
 
         with pytest.raises(ValueError):
             SourceFile(source_file_id="", filename="test.pdf", page_count=5)
+        with pytest.raises(ValueError, match="physical_page"):
+            sf.absolute_page_for(101)
 
     def test_logical_document(self) -> None:
         sid = StandardId.parse("IS 456:2000")
@@ -106,12 +123,14 @@ class TestModels:
             edition="Fourth",
             is_multipart=False,
             total_pages=114,
+            missing_volumes=(MissingVolume("vol-2", 115, 214, "not ingested"),),
         )
         assert doc.recommendation_eligible is True
         assert doc.title == "Plain and Reinforced Concrete"
         d = doc.to_dict()
         restored = LogicalDocument.from_dict(d)
         assert restored == doc
+        assert restored.missing_volumes[0].absolute_page_start == 115
 
     def test_section(self) -> None:
         sec = Section(
@@ -142,6 +161,9 @@ class TestModels:
             section_title="Cement",
             text="The cement used shall comply with...",
             is_eligible=True,
+            physical_page_start=1,
+            physical_page_end=2,
+            printed_page_label="Page 405",
         )
         # Legacy property access
         assert chunk.standard_number == "IS 456:2000"
@@ -156,6 +178,29 @@ class TestModels:
         restored = DocumentChunk.from_dict(d)
         assert restored.chunk_id == chunk.chunk_id
         assert restored.standard_id == sid
+        assert restored.physical_page_start == 1
+        assert restored.physical_page_end == 2
+        assert restored.printed_page_label == "Page 405"
+
+        legacy_payload = dict(d)
+        legacy_payload.pop("physical_page_start")
+        legacy_payload.pop("physical_page_end")
+        legacy_payload.pop("printed_page_label")
+        legacy_chunk = DocumentChunk.from_dict(legacy_payload)
+        assert legacy_chunk.physical_page_start is None
+        assert legacy_chunk.printed_page_label is None
+
+    def test_document_chunk_rejects_partial_physical_page_range(self) -> None:
+        with pytest.raises(ValueError, match="fully known"):
+            DocumentChunk(
+                chunk_id="chk-invalid-pages",
+                standard_id=None,
+                logical_doc_id="doc-1",
+                source_file_id="source-1",
+                absolute_page_start=401,
+                absolute_page_end=401,
+                physical_page_start=1,
+            )
 
 
 class TestRelationships:

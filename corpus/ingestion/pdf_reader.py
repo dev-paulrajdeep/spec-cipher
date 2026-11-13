@@ -14,10 +14,10 @@ belong to downstream corpus modules.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-import hashlib
 
 import pymupdf  # PyMuPDF
 
@@ -344,6 +344,21 @@ class PDFReader:
                 for row in table.extract()
             )
             header = tuple("" if name is None else str(name).strip() for name in table.header.names)
+            if header and extracted_rows:
+                # PyMuPDF can report a ruled-but-empty separator as an extra
+                # column. Remove it only when both its header and every cell
+                # are empty, preserving any genuinely unlabeled data column.
+                keep_columns = tuple(
+                    index
+                    for index, name in enumerate(header)
+                    if name or any(index < len(row) and row[index] for row in extracted_rows)
+                )
+                if keep_columns and len(keep_columns) != len(header):
+                    header = tuple(header[index] for index in keep_columns)
+                    extracted_rows = tuple(
+                        tuple(row[index] for index in keep_columns if index < len(row))
+                        for row in extracted_rows
+                    )
             if not any(header) and extracted_rows:
                 header, extracted_rows = extracted_rows[0], extracted_rows[1:]
             elif not table.header.external and extracted_rows and extracted_rows[0] == header:

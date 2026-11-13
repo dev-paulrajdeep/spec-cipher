@@ -26,14 +26,6 @@ from tests.e2e.fixtures.sample_data import (
     SAMPLE_STANDARDS,
 )
 
-try:
-    import faiss
-    import numpy as np
-    HAS_FAISS = True
-except ImportError:
-    HAS_FAISS = False
-
-
 def compute_file_sha256(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -217,7 +209,7 @@ class SyntheticCorpusReleaseBuilder:
         for std in self.standards_data:
             cur.execute(
                 """
-                INSERT INTO logical_documents 
+                INSERT INTO logical_documents
                 (id, family, number, part, year, code, title, status, edition, identity_source, is_eligible, is_stub, page_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -338,7 +330,14 @@ class SyntheticCorpusReleaseBuilder:
         dim = custom_dim or self.dim
         n = len(self.chunks_data)
 
-        if HAS_FAISS:
+        try:
+            import faiss
+            import numpy as np
+        except ImportError:
+            faiss = None
+            np = None
+
+        if faiss is not None and np is not None:
             index = faiss.IndexFlatIP(dim)
             # Create deterministic unit-norm vectors for testing
             rng = np.random.RandomState(42)
@@ -376,7 +375,13 @@ class SyntheticCorpusReleaseBuilder:
     ) -> Path:
         path = self.release_dir / "release.json"
         files_map = {}
-        for fname in ["catalog.sqlite", "chunks.jsonl", "vectors.faiss", "chunk_ids.json"]:
+        for fname in [
+            "catalog.sqlite",
+            "chunks.jsonl",
+            "vectors.faiss",
+            "chunk_ids.json",
+            "QUALITY.json",
+        ]:
             fpath = self.release_dir / fname
             if fpath.exists():
                 digest = compute_file_sha256(fpath)
@@ -400,6 +405,7 @@ class SyntheticCorpusReleaseBuilder:
                 "model": "BAAI/bge-m3",
                 "revision": "main",
                 "dim": manifest_dim or self.dim,
+                "distance_metric": "cosine",
                 "normalized": True,
             },
             "index_type": "IndexFlatIP",
