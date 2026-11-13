@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -81,7 +82,11 @@ def test_t3_pair_02_multipart_assembly_and_fts5_search(container: ApplicationCon
 def test_t3_pair_03_confidence_and_explain_degradation(client, container: ApplicationContainer):
     """E2E-T3-PAIR-03: Categorical Confidence + Explain Degradation (R4 + R5)."""
     # Set simulated offline Ollama host
-    container.settings.ollama_host = "http://localhost:9999"
+    container.settings.ollama_host = "http://127.0.0.1:9999"
+    container.settings.explanation = replace(
+        container.settings.explanation,
+        timeout_seconds=0.25,
+    )
 
     start_time = time.monotonic()
     res = client.post(
